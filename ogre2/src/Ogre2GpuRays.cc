@@ -113,9 +113,9 @@ class ignition::rendering::Ogre2GpuRaysPrivate
   public: Ogre::StagingTexture *stagingTexture = nullptr;
   /// \brief Buffer to move ray direction samples to texture.
   public: float *textureData = nullptr;
-  /// @brief Track time for lidar points
+  /// \brief Track time for lidar points
   public: common::Timer timer;
-  /// @brief Need double precision, otherwise we get choppy results after a while
+  /// \brief Need double precision, otherwise we get choppy results after a while
   public: double lastElapsed = 0;
 
   /// \brief Event triggered when new gpu rays range data are available.
