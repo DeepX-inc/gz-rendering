@@ -786,9 +786,9 @@ void Ogre2GpuRays::UpdateSampleTexture()
   };
 
   // Real Lidar has a polling rate of 240k pps
-  // Ideally we should measure time, but let's just measure samples instead
-  // This way get the same points as with the real lidar, although at a different speed
-  double time = this->dataPtr->timer.ElapsedTime().count();//this->dataPtr->w2nd * this->dataPtr->h2nd / 2.4e+5;
+  // We keep time in sync with real lidar,
+  // but keep polling rate constant according to image buffer size
+  double time = this->dataPtr->timer.ElapsedTime().count();
   double span = time - this->dataPtr->lastElapsed;
   this->dataPtr->lastElapsed = time;
   
