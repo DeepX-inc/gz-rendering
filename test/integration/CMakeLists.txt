@@ -1,7 +1,6 @@
 set(TEST_TYPE "INTEGRATION")
 
 set(tests
-  gpu_rays.cc
   boundingbox_camera.cc
   depth_camera.cc
   camera.cc
@@ -11,7 +10,6 @@ set(tests
   segmentation_camera.cc
   sky.cc
   thermal_camera.cc
-  lidar_visual.cc
 )
 
 link_directories(${PROJECT_BINARY_DIR}/test)

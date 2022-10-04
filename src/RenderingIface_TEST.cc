@@ -63,7 +63,7 @@ TEST(RenderingIfaceTest, GetEngine)
   EXPECT_EQ(nullptr, sceneFromFirstRenderEngine());
 
   // check get engine
-  for (unsigned int i = 0; i < count; ++i)
+  for (unsigned int i = 1; i < count; ++i)
   {
     RenderEngine *eng = engine(i, std::map<std::string, std::string>(),
         IGN_RENDERING_TEST_PLUGIN_PATH);
@@ -115,9 +115,9 @@ TEST(RenderingIfaceTest, RegisterEngine)
     return;
 
   // unregister existing engine by index
-  RenderEngine *eng = engine(0u);
+  RenderEngine *eng = engine(1u);
   EXPECT_TRUE(hasEngine(eng->Name()));
-  EXPECT_NO_THROW(unregisterEngine(0u));
+  EXPECT_NO_THROW(unregisterEngine(1u));
   EXPECT_FALSE(hasEngine(eng->Name()));
 
   // register engine back with a different name
