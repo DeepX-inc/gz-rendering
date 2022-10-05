@@ -593,39 +593,11 @@ void Ogre2GpuRays::ConfigureCamera()
   this->SetVFOV(vfovAngle);
 
   // Configure first pass texture size
-  // Each cubemap texture covers 90 deg FOV so determine number of samples
-  // within the view for both horizontal and vertical FOV
-  unsigned int hs = static_cast<unsigned int>(
-      IGN_PI * 0.5 / hfovAngle.Radian() * this->RangeCount());
-  unsigned int vs = static_cast<unsigned int>(
-      IGN_PI * 0.5 / vfovAngle * this->VerticalRangeCount());
-
-  // get the max number from the two
-  unsigned int v = std::max(hs, vs);
-  // round to next highest power of 2
-  // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-  v--;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v++;
-
-  // limit min texture size to 128
-  // This is needed for large fov with low sample count,
-  // e.g. 360 degrees and only 4 samples. Otherwise the depth data returned are
-  // inaccurate.
-  // \todo(anyone) For small fov, we shouldn't need such a high min texture size
-  // requirement, e.g. a single ray lidar only needs 1x1 texture. Look for ways
-  // to compute the optimal min texture size
-  unsigned int min1stPassSamples = 128u;
-
-  // limit max texture size to 1024
-  unsigned int max1stPassSamples = 1024u;
-  unsigned int samples1stPass =
-      std::clamp(v, min1stPassSamples, max1stPassSamples);
-
+  // Each cubemap texture covers 90 deg FOV
+  // We need enough samples so we don't get too much aliasing
+  // since the sample rays can have completely arbitrary positions
+  // but we can't use filtering, due to virtual "walls" behind occluders
+  unsigned int samples1stPass = 1024;
   this->Set1stTextureSize(samples1stPass, samples1stPass);
 
   // Configure second pass texture size
@@ -1490,7 +1462,7 @@ void Ogre2GpuRays::PostRender()
   }
 
   this->dataPtr->newGpuRaysFrame(this->dataPtr->gpuRaysScan,
-      width, height, this->Channels(), "PF_FLOAT32_RGB");
+      width, height, this->Channels(), "PF_FLOAT32_RGBA");
 
   // Uncomment to debug output
   // std::cerr << "wxh: " << width << " x " << height << std::endl;
