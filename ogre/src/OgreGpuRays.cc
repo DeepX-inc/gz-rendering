@@ -136,8 +136,8 @@ using namespace rendering;
 OgreGpuRays::OgreGpuRays()
   : dataPtr(new OgreGpuRaysPrivate)
 {
-  // r = depth, g = retro, and b = n/a
-  this->channels = 3u;
+  // r = depth, g = retro, b = n/a, and a = n/a
+  this->channels = 4u;
 }
 
 //////////////////////////////////////////////////
@@ -450,7 +450,7 @@ void OgreGpuRays::CreateGpuRaysTextures()
       "General",
       Ogre::TEX_TYPE_2D,
       this->dataPtr->w2nd, this->dataPtr->h2nd, 0,
-      Ogre::PF_FLOAT32_RGB,
+      Ogre::PF_FLOAT32_RGBA,
 #if OGRE_VERSION_LT_1_11_0
       Ogre::TU_RENDERTARGET).getPointer();
 #else
@@ -650,7 +650,7 @@ void OgreGpuRays::PostRender()
   unsigned int height = secondPassViewport->getActualHeight();
 
   size_t size = Ogre::PixelUtil::getMemorySize(
-    width, height, 1, Ogre::PF_FLOAT32_RGB);
+    width, height, 1, Ogre::PF_FLOAT32_RGBA);
   int len = width * height * this->Channels();
 
   if (!this->dataPtr->gpuRaysBuffer)
@@ -659,7 +659,7 @@ void OgreGpuRays::PostRender()
   }
 
   Ogre::PixelBox dstBox(width, height,
-        1, Ogre::PF_FLOAT32_RGB, this->dataPtr->gpuRaysBuffer);
+        1, Ogre::PF_FLOAT32_RGBA, this->dataPtr->gpuRaysBuffer);
 
   auto pixelBuffer = this->dataPtr->secondPassTexture->getBuffer();
   pixelBuffer->blitToMemory(dstBox);
@@ -672,7 +672,7 @@ void OgreGpuRays::PostRender()
   memcpy(this->dataPtr->gpuRaysScan, this->dataPtr->gpuRaysBuffer, size);
 
   this->dataPtr->newGpuRaysFrame(this->dataPtr->gpuRaysScan,
-      width, height, this->Channels(), "PF_FLOAT32_RGB");
+      width, height, this->Channels(), "PF_FLOAT32_RGBA");
 }
 
 //////////////////////////////////////////////////
@@ -690,7 +690,7 @@ void OgreGpuRays::Copy(float *_dataDest)
   unsigned int height = secondPassViewport->getActualHeight();
 
   size_t size = Ogre::PixelUtil::getMemorySize(
-    width, height, 1, Ogre::PF_FLOAT32_RGB);
+    width, height, 1, Ogre::PF_FLOAT32_RGBA);
 
   memcpy(_dataDest, this->dataPtr->gpuRaysScan, size);
 }
