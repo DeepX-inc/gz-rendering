@@ -32,6 +32,13 @@ namespace ignition
   {
     inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
     //
+
+    enum class ScanningPattern
+    {
+      AVIA,
+      RASTERIZATION,
+    };
+
     /// \class GpuRays GpuRays.hh ignition/rendering/GpuRays.hh
     /// \brief Generate depth ray data.
     class IGNITION_RENDERING_VISIBLE GpuRays :
@@ -192,7 +199,7 @@ namespace ignition
       public: virtual double VerticalResolution() const = 0;
 
       /// \brief Set the scanning pattern
-      public: virtual void SetScanningPattern(const std::string pattern) = 0;
+      public: virtual void SetScanningPattern(const ScanningPattern pattern) = 0;
     };
   }
   }

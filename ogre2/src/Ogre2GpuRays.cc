@@ -757,20 +757,36 @@ void Ogre2GpuRays::UpdateSampleTexture()
     return points;
   };
 
-  // Real Lidar has a polling rate of 240k pps
-  // We keep time in sync with real lidar,
-  // but keep polling rate constant according to image buffer size
-  double time = this->dataPtr->timer.ElapsedTime().count();
-  double span = time - this->dataPtr->lastElapsed;
-  this->dataPtr->lastElapsed = time;
-  
-  auto points = getLidarPoints(time, span, this->dataPtr->w2nd * this->dataPtr->h2nd);
-
   double hmin = this->AngleMin().Radian();
   double hmax = this->AngleMax().Radian();
   double vmin = this->VerticalAngleMin().Radian();
   double vmax = this->VerticalAngleMax().Radian();
   float *pDest = this->dataPtr->textureData;
+
+  std::vector<std::tuple<float, float>> points;
+  auto hdiff = hmax - hmin;
+  auto vdiff = vmax - vmin;
+
+  if (this->pattern == ScanningPattern::AVIA)
+  {
+    // Real Lidar has a polling rate of 240k pps
+    // We keep time in sync with real lidar,
+    // but keep polling rate constant according to image buffer size
+    double time = this->dataPtr->timer.ElapsedTime().count();
+    double span = time - this->dataPtr->lastElapsed;
+    this->dataPtr->lastElapsed = time;
+
+    points = getLidarPoints(time, span, this->dataPtr->w2nd * this->dataPtr->h2nd);
+
+    hdiff /= 2;
+    vdiff /= 2;
+  }
+
+  else if (this->pattern == ScanningPattern::RASTERIZATION)
+  {
+    hdiff /= this->dataPtr->h2nd;
+    vdiff /= this->dataPtr->w2nd;
+  }
 
   for (unsigned i = 0; i < this->dataPtr->h2nd; ++i)
   {
@@ -778,15 +794,21 @@ void Ogre2GpuRays::UpdateSampleTexture()
     {
       unsigned index = i * this->dataPtr->w2nd + j;
 
-      auto [x, y] = points[index];
-      x = hmin + (x + 1) / 2 * (hmax - hmin);
-      y = vmin + (y + 1) / 2 * (vmax - vmin);
-
-      if (this->scanningPattern == "rasterizing")
+      float x, y, dx, dy;
+      if (this->pattern == ScanningPattern::AVIA)
       {
-        x = hmin + (i + 1) * (hmax - hmin) / this->dataPtr->h2nd;
-        y = vmin + (j + 1) * (vmax - vmin) / this->dataPtr->w2nd;
+        dx =  std::get<0>(points[index]);
+        dy =  std::get<1>(points[index]);
       }
+
+      else if (this->pattern == ScanningPattern::RASTERIZATION)
+      {
+        dx = i;
+        dy = j;
+      }
+
+      x = hmin + (dx + 1) * hdiff;
+      y = vmin + (dy + 1) * vdiff;
 
       this->dataPtr->rayDirections[index] = {x, y};
 

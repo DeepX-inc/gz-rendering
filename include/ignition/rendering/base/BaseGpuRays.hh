@@ -152,7 +152,7 @@ namespace ignition
       public: virtual double VerticalResolution() const override;
 
       // Documentation inherited.
-      public: virtual void SetScanningPattern(const std::string pattern) override;
+      public: virtual void SetScanningPattern(ScanningPattern pattern) override;
 
       /// \brief maximum value used for data outside sensor range
       public: float dataMaxVal = ignition::math::INF_D;
@@ -204,7 +204,7 @@ namespace ignition
       protected: unsigned int channels = 1u;
 
       /// \brief Scanning Pattern
-      protected: std::string scanningPattern = "avia";
+      protected: ScanningPattern pattern = ScanningPattern::AVIA;
 
       private: friend class OgreScene;
     };
@@ -455,12 +455,9 @@ namespace ignition
 
     template <class T>
     //////////////////////////////////////////////////
-    void BaseGpuRays<T>::SetScanningPattern(const std::string pattern)
+    void BaseGpuRays<T>::SetScanningPattern(const ScanningPattern pattern)
     {
-      if (pattern == "rasterizing")
-      {
-        this->scanningPattern = pattern;
-      }
+        this->pattern = pattern;
     }
     }
   }
