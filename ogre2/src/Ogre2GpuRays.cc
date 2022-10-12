@@ -781,6 +781,13 @@ void Ogre2GpuRays::UpdateSampleTexture()
       auto [x, y] = points[index];
       x = hmin + (x + 1) / 2 * (hmax - hmin);
       y = vmin + (y + 1) / 2 * (vmax - vmin);
+
+      if (this->scanningPattern == "rasterizing")
+      {
+        x = hmin + (i + 1) * (hmax - hmin) / this->dataPtr->h2nd;
+        y = vmin + (j + 1) * (vmax - vmin) / this->dataPtr->w2nd;
+      }
+
       this->dataPtr->rayDirections[index] = {x, y};
 
       // set up dir vector to sample from a standard Y up cubemap

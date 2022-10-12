@@ -190,6 +190,9 @@ namespace ignition
       /// \return The vertical resolution.
       /// \sa VerticalRayCount()
       public: virtual double VerticalResolution() const = 0;
+
+      /// \brief Set the scanning pattern
+      public: virtual void SetScanningPattern(const std::string pattern) = 0;
     };
   }
   }
