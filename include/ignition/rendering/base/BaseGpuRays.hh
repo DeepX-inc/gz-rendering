@@ -204,7 +204,7 @@ namespace ignition
       protected: unsigned int channels = 1u;
 
       /// \brief Scanning Pattern
-      protected: ScanningPattern pattern = ScanningPattern::AVIA;
+      protected: ScanningPattern pattern = ScanningPattern::RASTERIZATION;
 
       private: friend class OgreScene;
     };
