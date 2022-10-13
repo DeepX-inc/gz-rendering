@@ -152,7 +152,7 @@ namespace ignition
       public: virtual double VerticalResolution() const override;
 
       // Documentation inherited.
-      public: virtual void SetScanningPattern(const ScanningPattern scanninPattern) override;
+      public: virtual void SetScanningPattern(const ScanningPattern _pattern) override;
 
       /// \brief maximum value used for data outside sensor range
       public: float dataMaxVal = ignition::math::INF_D;
@@ -455,9 +455,9 @@ namespace ignition
 
     template <class T>
     //////////////////////////////////////////////////
-    void BaseGpuRays<T>::SetScanningPattern(const ScanningPattern scanninPattern)
+    void BaseGpuRays<T>::SetScanningPattern(const ScanningPattern _pattern)
     {
-        this->pattern = scanninPattern;
+        this->pattern = _pattern;
     }
     }
   }

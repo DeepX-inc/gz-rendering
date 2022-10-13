@@ -199,7 +199,7 @@ namespace ignition
       public: virtual double VerticalResolution() const = 0;
 
       /// \brief Set the scanning pattern
-      public: virtual void SetScanningPattern(const ScanningPattern scanninPattern) = 0;
+      public: virtual void SetScanningPattern(const ScanningPattern _pattern) = 0;
     };
   }
   }
