@@ -794,7 +794,7 @@ void Ogre2GpuRays::UpdateSampleTexture()
     {
       unsigned index = i * this->dataPtr->w2nd + j;
 
-      float x, y, dx, dy;
+      float x = 0.0f, y = 0.0f, dx = 0.0f, dy = 0.0f;
       if (this->pattern == ScanningPattern::AVIA)
       {
         dx =  std::get<0>(points[index]);
