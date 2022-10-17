@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker run deepx-gz-rendering:latest cd /root/ && ls
+          docker run deepx-gz-rendering:latest cd /root/
 
       - name: Run tests
         run: |
