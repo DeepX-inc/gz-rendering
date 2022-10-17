@@ -29,10 +29,8 @@ jobs:
 
       - name: Run tests
         run: |
-          docker run --name deepx-gz-rendering \
-          --entrypoint bash ls /root
+          docker run deepx-gz-rendering:latest ls /root
 
       - name: Run tests
         run: |
-          docker run --name deepx-gz-rendering \
-          --entrypoint bash ls /root/gazebo/
+          docker run deepx-gz-rendering:latest ls /root/gazebo/
