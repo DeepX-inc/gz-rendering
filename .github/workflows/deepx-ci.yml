@@ -25,7 +25,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker run deepx-gz-rendering:latest ls /root/gazebo/gz-rendering
+          docker run deepx-gz-rendering:latest bash -c 'cd /root/gazebo; ls'
 
       - name: Run tests
         run: |
