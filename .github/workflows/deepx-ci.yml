@@ -25,12 +25,5 @@ jobs:
 
       - name: Run tests
         run: |
-          docker run deepx-gz-rendering:latest bash -c 'cd /root/gazebo/gz-rendering/; ls'
+          docker run deepx-gz-rendering:latest bash -c 'cd /root/gazebo/gz-rendering/build; ctest'
 
-      - name: Run tests
-        run: |
-          docker run deepx-gz-rendering:latest cd /root/
-
-      - name: Run tests
-        run: |
-          docker run deepx-gz-rendering:latest ls /root/gazebo/
