@@ -28,7 +28,7 @@ jobs:
           -v $GITHUB_WORKSPACE:/root/gazebo \
           --entrypoint bash \
           -w /root/gazebo deepx-gz-rendering \
-          -c 'cd /root/gazebo/gz-rendering/; mkdir build; cd build; cmake ..; make install;'
+          -c 'cd /root/gazebo/gz-rendering/; mkdir build; cd build; cmake ..; make install; echo "$(pwd)"'
           docker commit deepx-gz-rendering-container deepx-gz-rendering-image
 
       - name: Run tests
