@@ -22,7 +22,7 @@ jobs:
       - name: Build and commit the Docker container
         run: |
           docker build --build-arg BASE_IMAGE=ghcr.io/deepx-inc/base_images --build-arg TAG=foxy -t deepx-gz-rendering .
-          docker commit deepx-gz-rendering deepx-gz-rendering-image
+        docker commit deepx-gz-rendering:latest deepx-gz-rendering-image
 
       - name: Run tests
         run: |
