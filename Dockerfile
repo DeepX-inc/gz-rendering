@@ -93,4 +93,5 @@ COPY . gz-rendering/
 #     make install
 
 RUN mkdir -p gz-rendering/build && \
+    pwd && \
     cd gz-rendering/build
