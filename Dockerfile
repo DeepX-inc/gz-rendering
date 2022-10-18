@@ -1,4 +1,4 @@
-# docker-compose build --build-arg BASE_IMAGE=ghcr.io/deepx-inc/base_images --build-arg TAG=foxy
+# docker build --build-arg BASE_IMAGE=ghcr.io/deepx-inc/base_images --build-arg TAG=foxy -t deepx-gz-rendering .
 # Adds DeepX Gazebo Rendering image.
 # 
 # TODO: Add comment about command to push to repo
