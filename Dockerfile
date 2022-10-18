@@ -87,9 +87,6 @@ WORKDIR "/root/gazebo"
 COPY . gz-rendering/
 
 RUN mkdir -p gz-rendering/build && \
-     cd gz-rendering/build && \
-     cmake .. && \ 
-     make install
-
-# RUN mkdir -p gz-rendering/build && \
-#     cd gz-rendering/build
+    cd gz-rendering/build && \
+    cmake .. && \ 
+    make install
