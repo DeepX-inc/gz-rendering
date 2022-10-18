@@ -46,9 +46,8 @@ unsigned int defaultEnginesForTest()
 }
 
 /////////////////////////////////////////////////
-TEST(RenderingIfaceTest, GetEngine)
+TEST(DISABLED_RenderingIfaceTest, GetEngine)
 {
-  GTEST_SKIP() << "Skipping RenderingIfaceTest because it opens X display, while the test is mainly run remotely without X display support.";
   common::Console::SetVerbosity(4);
 
   unsigned int count = defaultEnginesForTest();
@@ -106,7 +105,7 @@ TEST(RenderingIfaceTest, GetEngine)
 }
 
 /////////////////////////////////////////////////
-TEST(RenderingIfaceTest, RegisterEngine)
+TEST(DISABLED_RenderingIfaceTest, RegisterEngine)
 {
   common::Console::SetVerbosity(4);
 
