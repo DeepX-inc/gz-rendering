@@ -21,8 +21,12 @@ jobs:
 
       - name: Build and commit the Docker container
         run: |
-          docker build --build-arg BASE_IMAGE=ghcr.io/deepx-inc/base_images --build-arg TAG=foxy -t deepx-gz-rendering .
+          docker build -t deepx-gz-rendering .
       
       - name: Run tests
         run: |
-          docker run deepx-gz-rendering:latest bash -c 'cd /root/gazebo/gz-rendering/build; cmake ..; make install/; ctest;'
+          docker run deepx-gz-rendering:latest bash \
+          -c 'cd /root/gazebo/gz-rendering/build; \
+          cmake ..; \
+          cmake --build . --target install -j; \
+          ctest;'
