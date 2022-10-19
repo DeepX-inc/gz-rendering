@@ -46,7 +46,7 @@ unsigned int defaultEnginesForTest()
 }
 
 /////////////////////////////////////////////////
-TEST(RenderingIfaceTest, GetEngine)
+TEST(DISABLED_RenderingIfaceTest, GetEngine)
 {
   common::Console::SetVerbosity(4);
 
@@ -105,7 +105,7 @@ TEST(RenderingIfaceTest, GetEngine)
 }
 
 /////////////////////////////////////////////////
-TEST(RenderingIfaceTest, RegisterEngine)
+TEST(DISABLED_RenderingIfaceTest, RegisterEngine)
 {
   common::Console::SetVerbosity(4);
 
