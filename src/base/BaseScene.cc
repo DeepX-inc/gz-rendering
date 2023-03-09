@@ -1282,13 +1282,6 @@ TextPtr BaseScene::CreateText()
 }
 
 //////////////////////////////////////////////////
-TextPtr BaseScene::CreateTextImpl(const unsigned int /*_id*/,
-    const std::string &/*_name*/)
-{
-  return TextPtr();
-}
-
-//////////////////////////////////////////////////
 MaterialPtr BaseScene::CreateMaterial(const std::string &_name)
 {
   unsigned int objId = this->CreateObjectId();

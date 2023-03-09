@@ -88,6 +88,9 @@ namespace ignition
       public: virtual void SetPoint(unsigned int _index,
                   const ignition::math::Vector3d &_value) override;
 
+      // Documentation inherited
+      public: virtual void SetText(const std::string &_text) override;
+
       /// \brief Life time of a marker
       IGN_COMMON_WARN_IGNORE__DLL_INTERFACE_MISSING
       protected: std::chrono::steady_clock::duration lifetime =
@@ -224,6 +227,13 @@ namespace ignition
     template <class T>
     void BaseMarker<T>::SetPoint(unsigned int,
                   const ignition::math::Vector3d &)
+    {
+      // no op
+    }
+
+    /////////////////////////////////////////////////
+    template <class T>
+    void BaseMarker<T>::SetText(const std::string&)
     {
       // no op
     }
