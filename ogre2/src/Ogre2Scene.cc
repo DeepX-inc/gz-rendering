@@ -45,6 +45,7 @@
 #include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
 #include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
 #include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "ignition/rendering/ogre2/Ogre2Text.hh"
 #include "ignition/rendering/ogre2/Ogre2ThermalCamera.hh"
 #include "ignition/rendering/ogre2/Ogre2SegmentationCamera.hh"
 #include "ignition/rendering/ogre2/Ogre2Visual.hh"
@@ -1300,11 +1301,12 @@ LidarVisualPtr Ogre2Scene::CreateLidarVisualImpl(unsigned int _id,
 }
 
 //////////////////////////////////////////////////
-TextPtr Ogre2Scene::CreateTextImpl(unsigned int /*_id*/,
-    const std::string &/*_name*/)
+TextPtr Ogre2Scene::CreateTextImpl(unsigned int _id,
+    const std::string &_name)
 {
-  // TODO(anyone)
-  return TextPtr();
+  Ogre2TextPtr text(new Ogre2Text);
+  bool result = this->InitObject(text, _id, _name);
+  return (result) ? text: nullptr;
 }
 
 //////////////////////////////////////////////////

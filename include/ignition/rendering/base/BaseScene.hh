@@ -764,7 +764,7 @@ namespace ignition
       /// \param[in] _name unique object name.
       /// \return Pointer to a text geometry object
       protected: virtual TextPtr CreateTextImpl(unsigned int _id,
-                     const std::string &_name);
+                     const std::string &_name) = 0;
 
       protected: virtual MaterialPtr CreateMaterialImpl(unsigned int _id,
                      const std::string &_name) = 0;

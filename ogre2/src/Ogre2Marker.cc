@@ -35,6 +35,7 @@
 #include "ignition/rendering/ogre2/Ogre2DynamicRenderable.hh"
 #include "ignition/rendering/ogre2/Ogre2Marker.hh"
 #include "ignition/rendering/ogre2/Ogre2Material.hh"
+#include "ignition/rendering/ogre2/Ogre2Text.hh"
 #include "ignition/rendering/ogre2/Ogre2Mesh.hh"
 #include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
 #include "ignition/rendering/ogre2/Ogre2Scene.hh"
@@ -65,6 +66,9 @@ class ignition::rendering::Ogre2MarkerPrivate
 
   /// \brief DynamicLines Object to display
   public: std::shared_ptr<Ogre2DynamicRenderable> dynamicRenderable;
+
+  /// \brief DynamicLines Object to display
+  public: std::shared_ptr<Ogre2Text> text;
 };
 
 using namespace ignition;
@@ -131,6 +135,9 @@ void Ogre2Marker::PreRender()
   }
 
   this->dataPtr->dynamicRenderable->Update();
+
+  if (this->dataPtr->text)
+    this->dataPtr->text->PreRender();
 }
 
 //////////////////////////////////////////////////
@@ -173,6 +180,12 @@ Ogre::MovableObject *Ogre2Marker::OgreObject() const
       }
       return nullptr;
     }
+    case MT_TEXT:
+      if (nullptr != this->dataPtr->text)
+      {
+        return this->dataPtr->text->OgreObject();
+      }
+      return nullptr;
     case MT_LINE_STRIP:
     case MT_LINE_LIST:
     case MT_POINTS:
@@ -242,6 +255,16 @@ void Ogre2Marker::SetMaterial(MaterialPtr _material, bool _unique)
   switch (this->markerType)
   {
     case MT_NONE:
+      break;
+    case MT_TEXT:
+      if (nullptr != this->dataPtr->text)
+      {
+        this->dataPtr->text->SetMaterial(derived, false);
+      }
+      else
+      {
+        ignerr << "Failed to set material, null text." << std::endl;
+      }
       break;
     case MT_BOX:
     case MT_CAPSULE:
@@ -352,6 +375,15 @@ void Ogre2Marker::SetType(MarkerType _markerType)
       isGeom = true;
       newGeom = this->scene->CreateCylinder();
       break;
+    case MT_TEXT:
+      {
+        auto text = std::dynamic_pointer_cast<Ogre2Text>(this->scene->CreateText());
+        text->SetCharHeight(2);
+        text->SetShowOnTop(true);
+        text->SetColor(ignition::math::Color::Black);
+        this->dataPtr->text = text;
+        break;
+      }
     case MT_SPHERE:
       isGeom = true;
       newGeom = this->scene->CreateSphere();
@@ -388,6 +420,13 @@ void Ogre2Marker::SetType(MarkerType _markerType)
     ignerr << "Failed to create geometry for marker type [" << _markerType
            << "]" << std::endl;
   }
+}
+
+//////////////////////////////////////////////////
+void Ogre2Marker::SetText(const std::string &_text)
+{
+  if (this->dataPtr->text)
+    this->dataPtr->text->SetTextString(_text);
 }
 
 //////////////////////////////////////////////////
