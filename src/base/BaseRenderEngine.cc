@@ -15,12 +15,12 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/RenderPassSystem.hh"
-#include "ignition/rendering/base/BaseRenderEngine.hh"
+#include "gz/rendering/RenderPassSystem.hh"
+#include "gz/rendering/base/BaseRenderEngine.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -224,7 +224,7 @@ ScenePtr BaseRenderEngine::CreateScene(unsigned int _id,
 
   if (this->HasSceneName(_name))
   {
-    ignerr << "Scene already exists with id: " << _id << std::endl;
+    ignerr << "Scene already exists with name: " << _name << std::endl;
     return nullptr;
   }
 

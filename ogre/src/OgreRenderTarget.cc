@@ -19,7 +19,7 @@
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wunused-parameter"
 #else
-# pragma warning(push, 0)
+# pragma warning(push)
 # pragma warning(disable: 4005)
 # pragma warning(disable: 4275)
 #endif
@@ -33,21 +33,21 @@
 #endif
 
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/Material.hh"
+#include "gz/rendering/Material.hh"
 
-#include "ignition/rendering/ogre/OgreRenderEngine.hh"
-#include "ignition/rendering/ogre/OgreRenderPass.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreRenderTarget.hh"
-#include "ignition/rendering/ogre/OgreRTShaderSystem.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreRenderEngine.hh"
+#include "gz/rendering/ogre/OgreRenderPass.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreRenderTarget.hh"
+#include "gz/rendering/ogre/OgreRTShaderSystem.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -61,10 +61,8 @@ OgreRenderTarget::OgreRenderTarget()
 //////////////////////////////////////////////////
 OgreRenderTarget::~OgreRenderTarget()
 {
-  // TODO(anyone): clean up check null
-
-  OgreRTShaderSystem::Instance()->DetachViewport(this->ogreViewport,
-      this->scene);
+  IGN_ASSERT(this->ogreViewport == nullptr,
+             "OgreRenderTarget::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -309,6 +307,8 @@ OgreRenderTexture::OgreRenderTexture()
 //////////////////////////////////////////////////
 OgreRenderTexture::~OgreRenderTexture()
 {
+  IGN_ASSERT(this->ogreTexture == nullptr,
+             "OgreRenderTexture::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -339,6 +339,8 @@ void OgreRenderTexture::DestroyTarget()
   if (nullptr == this->ogreTexture)
     return;
 
+  this->materialApplicator.reset();
+
   OgreRTShaderSystem::Instance()->DetachViewport(this->ogreViewport,
       this->scene);
 
@@ -352,6 +354,7 @@ void OgreRenderTexture::DestroyTarget()
   engine->OgreRoot()->getRenderSystem()->_cleanupDepthBuffers(false);
 
   this->ogreTexture = nullptr;
+  this->ogreViewport = nullptr;
 }
 
 //////////////////////////////////////////////////

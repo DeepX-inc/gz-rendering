@@ -15,24 +15,23 @@
  *
 */
 
-#include <ignition/math/Vector2.hh>
-#include <ignition/math/Vector3.hh>
+#include <gz/math/Vector2.hh>
+#include <gz/math/Vector3.hh>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Timer.hh>
-#include <ignition/math/Helpers.hh>
+#include <gz/common/Console.hh>
+#include <gz/math/Helpers.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2GpuRays.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2ParticleEmitter.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Sensor.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2GpuRays.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2ParticleEmitter.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Sensor.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
 
 #include "Ogre2IgnHlmsCustomizations.hh"
 #include "Ogre2ParticleNoiseListener.hh"
@@ -46,10 +45,14 @@
 #include <Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h>
 #include <Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h>
 #include <OgreDepthBuffer.h>
+#include <OgreHlms.h>
 #include <OgreItem.h>
+#include <OgrePixelFormatGpuUtils.h>
 #include <OgreRoot.h>
 #include <OgreSceneManager.h>
+#include <OgreStagingTexture.h>
 #include <OgreTechnique.h>
+#include <OgreTextureGpuManager.h>
 #ifdef _MSC_VER
   #pragma warning(pop)
 #endif
@@ -105,7 +108,7 @@ class Ogre2LaserRetroMaterialSwitcher : public Ogre::Camera::Listener
 
 /// \internal
 /// \brief Private data for the Ogre2GpuRays class
-class ignition::rendering::Ogre2GpuRaysPrivate
+class gz::rendering::Ogre2GpuRaysPrivate
 {
   /// \brief Buffer for storing ray directions of the current frame.
   public: std::vector<std::tuple<float, float>> rayDirections;
@@ -124,7 +127,7 @@ class ignition::rendering::Ogre2GpuRaysPrivate
   /// \param[in] _height Height of frame.
   /// \param[in] _channel Number of channels
   /// \param[in] _format Format of frame.
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
                unsigned int, unsigned int, unsigned int,
                const std::string &)> newGpuRaysFrame;
 
@@ -214,7 +217,7 @@ class ignition::rendering::Ogre2GpuRaysPrivate
   public: const unsigned int kCubeCameraCount = 6;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -419,41 +422,23 @@ void Ogre2GpuRays::Destroy()
 
   auto engine = Ogre2RenderEngine::Instance();
   auto ogreRoot = engine->OgreRoot();
-  if (this->dataPtr->cubeUVTexture)
-  {
-    ogreRoot->getRenderSystem()->getTextureGpuManager()->destroyTexture(
-      this->dataPtr->cubeUVTexture);
-    this->dataPtr->cubeUVTexture = nullptr;
-  }
-  
-  if (this->dataPtr->stagingTexture)
-  {
-    ogreRoot->getRenderSystem()->getTextureGpuManager()->removeStagingTexture(this->dataPtr->stagingTexture);
-    this->dataPtr->stagingTexture = nullptr;
-  }
-
-  if (this->dataPtr->textureData)
-  {
-    OGRE_FREE_SIMD(this->dataPtr->textureData, Ogre::MEMCATEGORY_RESOURCE);
-    this->dataPtr->textureData = nullptr;
-  }
 
   Ogre::CompositorManager2 *ogreCompMgr = ogreRoot->getCompositorManager2();
 
   // remove 1st pass textures, material, compositors
   for (auto i : this->dataPtr->cubeFaceIdx)
   {
-    if (this->dataPtr->firstPassTextures[i])
-    {
-      ogreRoot->getRenderSystem()->getTextureGpuManager()->destroyTexture(
-         this->dataPtr->firstPassTextures[i]);
-      this->dataPtr->firstPassTextures[i] = nullptr;
-    }
     if (this->dataPtr->ogreCompositorWorkspace1st[i])
     {
       ogreCompMgr->removeWorkspace(
           this->dataPtr->ogreCompositorWorkspace1st[i]);
       this->dataPtr->ogreCompositorWorkspace1st[i] = nullptr;
+    }
+    if (this->dataPtr->firstPassTextures[i])
+    {
+      ogreRoot->getRenderSystem()->getTextureGpuManager()->destroyTexture(
+         this->dataPtr->firstPassTextures[i]);
+      this->dataPtr->firstPassTextures[i] = nullptr;
     }
   }
   if (this->dataPtr->matFirstPass)
@@ -495,6 +480,13 @@ void Ogre2GpuRays::Destroy()
     ogreCompMgr->removeNodeDefinition(
         this->dataPtr->ogreCompositorNodeDef2nd);
     this->dataPtr->ogreCompositorWorkspaceDef2nd.clear();
+  }
+
+  auto textureGpuManager = ogreRoot->getRenderSystem()->getTextureGpuManager();
+  if (this->dataPtr->cubeUVTexture)
+  {
+    textureGpuManager->destroyTexture(this->dataPtr->cubeUVTexture);
+    this->dataPtr->cubeUVTexture = nullptr;
   }
 
   if (this->scene)
@@ -1050,11 +1042,9 @@ void Ogre2GpuRays::Setup1stPass()
           colorTargetDef->addPass(Ogre::PASS_SCENE));
       passScene->setAllLoadActions(Ogre::LoadAction::Clear);
       passScene->setAllClearColours(Ogre::ColourValue(0, 0, 0));
-      // set visibility mask and '&' it with IGN_VISIBILITY_ALL (0x0FFFFFFF)
-      // to make sure the fist 4 bits are 0 otherwise lidar will not be able
-      // to detect heightmaps
-      passScene->mVisibilityMask = (this->VisibilityMask() & IGN_VISIBILITY_ALL)
-          & ~Ogre2ParticleEmitter::kParticleVisibilityFlags;
+      passScene->setVisibilityMask(
+        this->VisibilityMask() &
+        ~Ogre2ParticleEmitter::kParticleVisibilityFlags);
     }
 
     Ogre::CompositorTargetDef *particleTargetDef =
@@ -1547,7 +1537,7 @@ void Ogre2GpuRays::SetRangeCount(
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr Ogre2GpuRays::ConnectNewGpuRaysFrame(
+common::ConnectionPtr Ogre2GpuRays::ConnectNewGpuRaysFrame(
     std::function<void(const float *_frame, unsigned int _width,
     unsigned int _height, unsigned int _channels,
     const std::string &/*_format*/)> _subscriber)

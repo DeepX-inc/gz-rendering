@@ -27,6 +27,7 @@
 #include <OgreHighLevelGpuProgram.h>
 #include <OgreHighLevelGpuProgramManager.h>
 #include <OgreHlmsManager.h>
+#include <OgreItem.h>
 #include <OgreMaterialManager.h>
 #include <OgrePixelFormatGpuUtils.h>
 #include <OgreTechnique.h>
@@ -36,21 +37,21 @@
 #pragma warning(pop)
 #endif
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
-#include <ignition/common/Image.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Filesystem.hh>
+#include <gz/common/Image.hh>
 
-#include "ignition/rendering/GraphicsAPI.hh"
-#include "ignition/rendering/ShaderParams.hh"
-#include "ignition/rendering/ShaderType.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/GraphicsAPI.hh"
+#include "gz/rendering/ShaderParams.hh"
+#include "gz/rendering/ShaderType.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
 
 
 /// \brief Private data for the Ogre2Material class
-class ignition::rendering::Ogre2MaterialPrivate
+class gz::rendering::Ogre2MaterialPrivate
 {
   /// \brief Ogre stores the name using hashes. This variable will
   /// store the material hash name
@@ -69,7 +70,7 @@ class ignition::rendering::Ogre2MaterialPrivate
   public: ShaderParamsPtr fragmentShaderParams;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -261,6 +262,30 @@ void Ogre2Material::UpdateTransparency()
 
   // from ogre documentation: 0 = full transparency and 1 = fully opaque
   this->ogreDatablock->setTransparency(opacity, mode);
+
+  // set transparent objects to be in a higher render queue group
+  // so they blend properly with heightmaps (render queue 11)
+  auto renderables = this->ogreDatablock->getLinkedRenderables();
+  for (auto & renderable : renderables)
+  {
+    auto subItem = dynamic_cast<Ogre::SubItem *>(renderable);
+    if (subItem)
+    {
+      if (mode == Ogre::HlmsPbsDatablock::None)
+      {
+        // by default, ogre items are in render queue 10
+        // these are hardcoded in ogre-next and there does not seem to be
+        // an enum of function to retrieve this default render queue group
+        subItem->getParent()->setRenderQueueGroup(10);
+      }
+      else
+      {
+        // put in render queue group 200
+        // v2 entities can be placed in groups 0-99 or 200-224
+        subItem->getParent()->setRenderQueueGroup(200);
+      }
+    }
+  }
 }
 
 //////////////////////////////////////////////////
@@ -637,7 +662,7 @@ void Ogre2Material::UpdateShaderParams()
 void Ogre2Material::UpdateShaderParams(ConstShaderParamsPtr _params,
     Ogre::GpuProgramParametersSharedPtr _ogreParams)
 {
-  for (const auto name_param : *_params)
+  for (const auto &name_param : *_params)
   {
     auto *constantDef =
         Ogre::GpuProgramParameters::getAutoConstantDefinition(name_param.first);

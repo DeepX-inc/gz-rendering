@@ -19,13 +19,13 @@
 
 #include "test_config.h"  // NOLINT(build/include)
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/config.hh"
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
+#include "gz/rendering/config.hh"
+#include "gz/rendering/RenderEngine.hh"
+#include "gz/rendering/RenderingIface.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /////////////////////////////////////////////////
@@ -92,7 +92,7 @@ TEST(DISABLED_RenderingIfaceTest, GetEngine)
     ASSERT_EQ(1u, loadedEngines().size());
     EXPECT_EQ(eng->Name(), loadedEngines()[0]);
 
-    rendering::unloadEngine(eng->Name());
+    unloadEngine(eng->Name());
     EXPECT_FALSE(isEngineLoaded(eng->Name()));
   }
 

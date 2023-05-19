@@ -27,14 +27,14 @@
 #include <iostream>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/rendering.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/rendering.hh>
 
 #include "example_config.hh"
 #include "GlutWindow.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 const std::string RESOURCE_PATH =
@@ -45,7 +45,7 @@ void buildScene(ScenePtr _scene)
 {
   // initialize _scene
   _scene->SetAmbientLight(0.3, 0.3, 0.3);
-  _scene->SetBackgroundColor(0.3, 0.3, 0.3);
+  _scene->SetBackgroundColor(0.0, 0.0, 0.3);
   VisualPtr root = _scene->RootVisual();
 
   // create directional light

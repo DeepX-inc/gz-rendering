@@ -17,21 +17,21 @@
 
 #include <typeinfo>
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreRayQuery.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreRayQuery.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
 
-class ignition::rendering::OgreRayQueryPrivate
+class gz::rendering::OgreRayQueryPrivate
 {
   /// \brief Ogre ray scene query object for computing intersection.
   public: Ogre::RaySceneQuery *rayQuery = nullptr;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -231,7 +231,7 @@ void OgreRayQuery::MeshInformation(const Ogre::Mesh *_mesh,
            ++j, vertex += vbuf->getVertexSize())
      {
         posElem->baseVertexPointerToElement(vertex, &pReal);
-        ignition::math::Vector3d pt(pReal[0], pReal[1], pReal[2]);
+        math::Vector3d pt(pReal[0], pReal[1], pReal[2]);
         _vertices[current_offset + j] =
             OgreConversions::Convert((_orient * (pt * _scale)) + _position);
       }

@@ -15,17 +15,17 @@
  *
  */
 
-#include "ignition/rendering/MoveToHelper.hh"
+#include "gz/rendering/MoveToHelper.hh"
 
 #include <memory>
 
-#include <ignition/common/Animation.hh>
-#include <ignition/common/KeyFrame.hh>
-#include <ignition/math/Pose3.hh>
+#include <gz/common/Animation.hh>
+#include <gz/common/KeyFrame.hh>
+#include <gz/math/Pose3.hh>
 
-#include "ignition/rendering/Camera.hh"
+#include "gz/rendering/Camera.hh"
 
-class ignition::rendering::MoveToHelperPrivate
+class gz::rendering::MoveToHelperPrivate
 {
   /// \brief Pose animation object
   public: std::unique_ptr<common::PoseAnimation> poseAnim;
@@ -40,7 +40,7 @@ class ignition::rendering::MoveToHelperPrivate
   public: math::Pose3d initCameraPose;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 ////////////////////////////////////////////////
@@ -53,8 +53,8 @@ MoveToHelper::MoveToHelper() :
 MoveToHelper::~MoveToHelper() = default;
 
 ////////////////////////////////////////////////
-void MoveToHelper::MoveTo(const rendering::CameraPtr &_camera,
-    const ignition::math::Pose3d &_target,
+void MoveToHelper::MoveTo(const CameraPtr &_camera,
+    const math::Pose3d &_target,
     double _duration, std::function<void()> _onAnimationComplete)
 {
   this->dataPtr->camera = _camera;
@@ -81,8 +81,8 @@ void MoveToHelper::MoveTo(const rendering::CameraPtr &_camera,
 }
 
 ////////////////////////////////////////////////
-void MoveToHelper::MoveTo(const rendering::CameraPtr &_camera,
-    const rendering::NodePtr &_target,
+void MoveToHelper::MoveTo(const CameraPtr &_camera,
+    const NodePtr &_target,
     double _duration, std::function<void()> _onAnimationComplete)
 {
   this->dataPtr->camera = _camera;
@@ -125,7 +125,7 @@ void MoveToHelper::MoveTo(const rendering::CameraPtr &_camera,
 }
 
 ////////////////////////////////////////////////
-void MoveToHelper::LookDirection(const rendering::CameraPtr &_camera,
+void MoveToHelper::LookDirection(const CameraPtr &_camera,
     const math::Vector3d &_direction, const math::Vector3d &_lookAt,
     double _duration, std::function<void()> _onAnimationComplete)
 {
@@ -146,7 +146,7 @@ void MoveToHelper::LookDirection(const rendering::CameraPtr &_camera,
 
   // Calculate camera orientation
   math::Quaterniond endRot =
-    ignition::math::Matrix4d::LookAt(endPos, _lookAt).Rotation();
+    math::Matrix4d::LookAt(endPos, _lookAt).Rotation();
 
   // Move camera to that pose
   common::PoseKeyFrame *key = this->dataPtr->poseAnim->CreateKeyFrame(0);
