@@ -77,6 +77,9 @@ namespace ignition
       // Documentation inherited
       public: virtual MarkerType Type() const override;
 
+      // Documentation inherited
+      public: virtual void SetText(const std::string &_text) override;
+
       /// \brief Create the marker geometry in ogre
       private: void Create();
 
