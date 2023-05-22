@@ -23,6 +23,7 @@
 #include "gz/rendering/ogre/OgreMaterial.hh"
 #include "gz/rendering/ogre/OgreMesh.hh"
 #include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreText.hh"
 
 class gz::rendering::OgreMarkerPrivate
 {
