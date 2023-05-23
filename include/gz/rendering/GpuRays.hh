@@ -32,6 +32,13 @@ namespace gz
   {
     inline namespace GZ_RENDERING_VERSION_NAMESPACE {
     //
+
+    enum class ScanningPattern
+    {
+      AVIA,
+      RASTERIZATION,
+    };
+
     /// \class GpuRays GpuRays.hh gz/rendering/GpuRays.hh
     /// \brief Generate depth ray data.
     class GZ_RENDERING_VISIBLE GpuRays :
@@ -190,6 +197,9 @@ namespace gz
       /// \return The vertical resolution.
       /// \sa VerticalRayCount()
       public: virtual double VerticalResolution() const = 0;
+
+      /// \brief Set the scanning pattern
+      public: virtual void SetScanningPattern(const ScanningPattern _pattern) = 0;
     };
   }
   }
