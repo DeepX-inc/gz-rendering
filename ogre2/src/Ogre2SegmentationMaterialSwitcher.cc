@@ -21,12 +21,15 @@
 #include <utility>
 #include <vector>
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Heightmap.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
-#include "ignition/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Heightmap.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/RenderTypes.hh"
+
+#include "Terra/Terra.h"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -40,7 +43,7 @@
   #pragma warning(pop)
 #endif
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /////////////////////////////////////////////////
@@ -49,31 +52,6 @@ Ogre2SegmentationMaterialSwitcher::Ogre2SegmentationMaterialSwitcher(
 {
   this->scene = _scene;
   this->segmentationCamera = _camera;
-
-  // plain material to switch item's material
-  Ogre::ResourcePtr res =
-    Ogre::MaterialManager::getSingleton().load("ign-rendering/plain_color",
-        Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-
-  this->plainMaterial = res.staticCast<Ogre::Material>();
-  this->plainMaterial->load();
-
-  // plain overlay material
-  this->plainOverlayMaterial =
-      this->plainMaterial->clone("plain_color_overlay");
-  if (!this->plainOverlayMaterial->getTechnique(0) ||
-      !this->plainOverlayMaterial->getTechnique(0)->getPass(0))
-  {
-    ignerr << "Problem creating selection buffer overlay material"
-        << std::endl;
-    return;
-  }
-  Ogre::Pass *overlayPass =
-      this->plainOverlayMaterial->getTechnique(0)->getPass(0);
-  Ogre::HlmsMacroblock macroblock(*overlayPass->getMacroblock());
-  macroblock.mDepthCheck = false;
-  macroblock.mDepthWrite = false;
-  overlayPass->setMacroblock(macroblock);
 }
 
 /////////////////////////////////////////////////
@@ -99,6 +77,97 @@ bool Ogre2SegmentationMaterialSwitcher::IsTakenColor(const math::Color &_color)
     this->takenColors.insert(colorId);
     return false;
   }
+}
+
+/////////////////////////////////////////////////
+Ogre::Vector4 Ogre2SegmentationMaterialSwitcher::ColorForVisual(
+  const VisualPtr &_visual, std::string &_prevParentName)
+{
+  // get class user data
+  Variant labelAny = _visual->UserData("label");
+  int label;
+  try
+  {
+    label = std::get<int>(labelAny);
+  }
+  catch (std::bad_variant_access &)
+  {
+    // items with no class are considered background
+    label = this->segmentationCamera->BackgroundLabel();
+  }
+
+  // sub item custom parameter to set the pixel color material
+  Ogre::Vector4 customParameter;
+
+  // Material Switching
+  if (this->segmentationCamera->Type() == SegmentationType::ST_SEMANTIC)
+  {
+    if (this->segmentationCamera->IsColoredMap())
+    {
+      // semantic material (each pixel has item's color)
+      math::Color color = this->LabelToColor(label);
+      customParameter = Ogre::Vector4(color.R(), color.G(), color.B(), 1.0);
+    }
+    else
+    {
+      // labels ids material (each pixel has item's label)
+      float labelColor = label / 255.0f;
+      customParameter = Ogre::Vector4(labelColor, labelColor, labelColor, 1.0);
+    }
+  }
+  else if (this->segmentationCamera->Type() == SegmentationType::ST_PANOPTIC)
+  {
+    auto itemName = _visual->Name();
+    std::string parentName = this->TopLevelModelVisual(_visual)->Name();
+
+    auto it = this->instancesCount.find(label);
+    if (it == this->instancesCount.end())
+      it = this->instancesCount.insert(std::make_pair(label, 0)).first;
+
+    // Multi link model has many links with the same first name and should
+    // have the same pixels color
+    bool isMultiLink = false;
+    if (parentName == _prevParentName)
+    {
+      isMultiLink = true;
+    }
+    else
+    {
+      it->second++;
+      _prevParentName = parentName;
+    }
+
+    const int instanceCount = it->second;
+
+    if (this->segmentationCamera->IsColoredMap())
+    {
+      math::Color color;
+      if (label == this->segmentationCamera->BackgroundLabel())
+      {
+        color = this->LabelToColor(label, isMultiLink);
+      }
+      else
+      {
+        // convert 24 bit number to int64
+        const int compositeId = label * 256 * 256 + instanceCount;
+        color = this->LabelToColor(compositeId, isMultiLink);
+      }
+
+      customParameter = Ogre::Vector4(color.R(), color.G(), color.B(), 1.0);
+    }
+    else
+    {
+      // 256 => 8 bits .. 255 => color percentage
+      float labelColor = label / 255.0f;
+      float instanceColor1 = (instanceCount / 256) / 255.0f;
+      float instanceColor2 = (instanceCount % 256) / 255.0f;
+
+      customParameter =
+        Ogre::Vector4(instanceColor2, instanceColor1, labelColor, 1.0);
+    }
+  }
+
+  return customParameter;
 }
 
 /////////////////////////////////////////////////
@@ -165,6 +234,9 @@ void Ogre2SegmentationMaterialSwitcher::cameraPreRenderScene(
   auto itor = this->scene->OgreSceneManager()->getMovableObjectIterator(
       Ogre::ItemFactory::FACTORY_TYPE_NAME);
 
+  auto engine = Ogre2RenderEngine::Instance();
+  engine->SetGzOgreRenderingMode(GORM_SOLID_COLOR);
+
   // Used for multi-link models, where each model has many ogre items but
   // belongs to the same object, and all of them has the same parent name
   std::string prevParentName = "";
@@ -186,6 +258,18 @@ void Ogre2SegmentationMaterialSwitcher::cameraPreRenderScene(
       return object1->getName() > object2->getName();
   });
 
+  this->materialMap.clear();
+  this->datablockMap.clear();
+  Ogre::HlmsManager *hlmsManager = engine->OgreRoot()->getHlmsManager();
+
+  Ogre::HlmsDatablock *defaultPbs =
+    hlmsManager->getHlms(Ogre::HLMS_PBS)->getDefaultDatablock();
+
+  // Construct one now so that datablock->setBlendblock
+  // each is as fast as possible
+  const Ogre::HlmsBlendblock *noBlend =
+    hlmsManager->getBlendblock(Ogre::HlmsBlendblock());
+
   for (auto object : ogreObjects)
   {
     Ogre::Item *item = static_cast<Ogre::Item *>(object);
@@ -205,177 +289,162 @@ void Ogre2SegmentationMaterialSwitcher::cameraPreRenderScene(
       }
       catch(Ogre::Exception &e)
       {
-        ignerr << "Ogre Error:" << e.getFullDescription() << "\n";
-      }
-      Ogre2VisualPtr ogreVisual = std::dynamic_pointer_cast<Ogre2Visual>(
-        visual);
-
-      // get class user data
-      Variant labelAny = ogreVisual->UserData("label");
-      int label;
-      try
-      {
-        label = std::get<int>(labelAny);
-      }
-      catch(std::bad_variant_access &e)
-      {
-        // items with no class are considered background
-        label = this->segmentationCamera->BackgroundLabel();
+        gzerr << "Ogre Error:" << e.getFullDescription() << "\n";
       }
 
-      // sub item custom parameter to set the pixel color material
-      Ogre::Vector4 customParameter;
+      const Ogre::Vector4 customParameter =
+        ColorForVisual(visual, prevParentName);
 
-      // Material Switching
-      if (this->segmentationCamera->Type() == SegmentationType::ST_SEMANTIC)
+      const size_t numSubItems = item->getNumSubItems();
+      for (size_t i = 0; i < numSubItems; ++i)
       {
-        if (this->segmentationCamera->IsColoredMap())
-        {
-          // semantic material (each pixel has item's color)
-          math::Color color = this->LabelToColor(label);
-          customParameter = Ogre::Vector4(
-            color.R(), color.G(), color.B(), 1.0);
-        }
-        else
-        {
-          // labels ids material (each pixel has item's label)
-          float labelColor = label / 255.0;
-          customParameter = Ogre::Vector4(
-            labelColor, labelColor, labelColor, 1.0);
-        }
-      }
-      else if (this->segmentationCamera->Type() ==
-          SegmentationType::ST_PANOPTIC)
-      {
-        auto itemName = visual->Name();
-        std::string parentName = this->TopLevelModelVisual(visual)->Name();
-
-        auto it = this->instancesCount.find(label);
-        if (it == this->instancesCount.end())
-          it = this->instancesCount.insert(std::make_pair(label, 0)).first;
-
-        // Multi link model has many links with the same first name and should
-        // have the same pixels color
-        bool isMultiLink = false;
-        if (parentName == prevParentName)
-        {
-          isMultiLink = true;
-        }
-        else
-        {
-          it->second++;
-          prevParentName = parentName;
-        }
-
-        int instanceCount = it->second;
-
-        if (this->segmentationCamera->IsColoredMap())
-        {
-          // convert 24 bit number to int64
-          int compositeId = label * 256 * 256 + instanceCount;
-
-          math::Color color;
-          if (label == this->segmentationCamera->BackgroundLabel())
-            color = this->LabelToColor(label, isMultiLink);
-          else
-            color = this->LabelToColor(compositeId, isMultiLink);
-
-          customParameter = Ogre::Vector4(
-            color.R(), color.G(), color.B(), 1.0);
-        }
-        else
-        {
-          // 256 => 8 bits .. 255 => color percentage
-          float labelColor = label / 255.0;
-          float instanceColor1 = (instanceCount / 256) / 255.0;
-          float instanceColor2 = (instanceCount % 256) / 255.0;
-
-          customParameter = Ogre::Vector4(
-            instanceColor2, instanceColor1, labelColor, 1.0);
-        }
-      }
-
-      for (unsigned int i = 0; i < item->getNumSubItems(); ++i)
-      {
+        // Set the custom value to the sub item to render
         Ogre::SubItem *subItem = item->getSubItem(i);
         subItem->setCustomParameter(1, customParameter);
 
-        // save subitems material
-        // case when item is using low level materials
-        // e.g. shaders
         if (!subItem->getMaterial().isNull())
         {
-          this->segmentationMaterialMap[subItem] = subItem->getMaterial();
-          auto technique = subItem->getMaterial()->getTechnique(0);
+          this->materialMap.push_back({ subItem, subItem->getMaterial() });
 
-          if (technique && !technique->isDepthWriteEnabled() &&
-              !technique->isDepthCheckEnabled())
+          // We need to keep the material's vertex shader
+          // to keep vertex deformation consistent; so we use
+          // a cloned material with a different pixel shader
+          // https://github.com/gazebosim/gz-rendering/issues/544
+          //
+          // material may be a nullptr if we called setMaterial directly
+          // (i.e. it's not using Ogre2Material interface).
+          // In those cases we fallback to PBS in the current IORM mode.
+          auto material = Ogre::MaterialManager::getSingleton().getByName(
+            subItem->getMaterial()->getName() + "_solid",
+            Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+          if (material)
           {
-            subItem->setMaterial(this->plainOverlayMaterial);
+            if (material->getLoadingState() ==
+                Ogre::Resource::LOADSTATE_UNLOADED)
+            {
+              // Manually defined materials like PointCloudPoint_solid need this
+              material->load();
+            }
+
+            if (material->getNumSupportedTechniques() > 0u)
+            {
+              subItem->setMaterial(material);
+            }
           }
           else
           {
-            subItem->setMaterial(this->plainMaterial);
+            // The supplied vertex shader could not pair with the
+            // pixel shader we provide. Try to salvage the situation
+            // using PBS shader. Custom deformation won't work but
+            // if we're lucky that won't matter
+            subItem->setDatablock(defaultPbs);
           }
         }
-        // regular Pbs Hlms datablock
         else
         {
           Ogre::HlmsDatablock *datablock = subItem->getDatablock();
-          this->datablockMap[subItem] = datablock;
+          const Ogre::HlmsBlendblock *blendblock = datablock->getBlendblock();
 
-          // check if it's an overlay material by assuming the
-          // depth check and depth write properties are off.
-          if (!datablock->getMacroblock()->mDepthWrite &&
-              !datablock->getMacroblock()->mDepthCheck)
-            subItem->setMaterial(this->plainOverlayMaterial);
-          else
-            subItem->setMaterial(this->plainMaterial);
+          // We can't do any sort of blending. This isn't colour what we're
+          // storing, but rather an ID.
+          if (blendblock->mSourceBlendFactor != Ogre::SBF_ONE ||
+              blendblock->mDestBlendFactor != Ogre::SBF_ZERO ||
+              blendblock->mBlendOperation != Ogre::SBO_ADD ||
+              (blendblock->mSeparateBlend &&
+               (blendblock->mSourceBlendFactorAlpha != Ogre::SBF_ONE ||
+                blendblock->mDestBlendFactorAlpha != Ogre::SBF_ZERO ||
+                blendblock->mBlendOperationAlpha != Ogre::SBO_ADD)))
+          {
+            hlmsManager->addReference(blendblock);
+            this->datablockMap[datablock] = blendblock;
+            datablock->setBlendblock(noBlend);
+          }
         }
       }
     }
   }
 
-  // reset the count & colors tracking
-  this->instancesCount.clear();
-  this->takenColors.clear();
-  this->coloredLabel.clear();
-
-  // disable heightmaps in segmentation camera sensor
-  // until we support changing its material based on input label
-  // TODO(anyone) add support for heightmaps with the segmentation camera
-  // https://github.com/ignitionrobotics/ign-rendering/issues/444
+  // Do the same with heightmaps / terrain
   auto heightmaps = this->scene->Heightmaps();
   for (auto h : heightmaps)
   {
     auto heightmap = h.lock();
     if (heightmap)
-      heightmap->Parent()->SetVisible(false);
+    {
+      // TODO(anyone): Retrieve datablock and make sure it's not blending
+      // like we do with Items (it should be impossible?)
+      VisualPtr visual = heightmap->Parent();
+      const Ogre::Vector4 customParameter =
+        ColorForVisual(visual, prevParentName);
+      heightmap->Terra()->SetSolidColor(1u, customParameter);
+    }
   }
+
+  // Remove the reference count on noBlend we created
+  hlmsManager->destroyBlendblock(noBlend);
+
+  // reset the count & colors tracking
+  this->instancesCount.clear();
+  this->takenColors.clear();
+  this->coloredLabel.clear();
 }
 
 ////////////////////////////////////////////////
 void Ogre2SegmentationMaterialSwitcher::cameraPostRenderScene(
     Ogre::Camera * /*_cam*/)
 {
-  // restore item to use pbs hlms material
-  for (const auto &[subItem, dataBlock] : this->datablockMap)
-    subItem->setDatablock(dataBlock);
+  auto engine = Ogre2RenderEngine::Instance();
+  Ogre::HlmsManager *hlmsManager = engine->OgreRoot()->getHlmsManager();
 
-  for (const auto &[subItem, material] : this->segmentationMaterialMap)
-    subItem->setMaterial(material);
-
+  // Restore original blending to modified materials
+  for (const auto &[datablock, blendblock] : this->datablockMap)
+  {
+    datablock->setBlendblock(blendblock);
+    // Remove the reference we added (this won't actually destroy it)
+    hlmsManager->destroyBlendblock(blendblock);
+  }
   this->datablockMap.clear();
-  this->segmentationMaterialMap.clear();
 
-  // re-enable heightmaps
+  // Remove the custom parameter. Why? If there are multiple cameras that
+  // use GORM_SOLID_COLOR (or any other mode), we want them to throw if
+  // that code forgot to call setCustomParameter. We may miss those errors
+  // if that code forgets to call but it was already carrying the value
+  // we set here.
+  //
+  // This consumes more performance but it's the price to pay for
+  // safety.
+  auto itor = this->scene->OgreSceneManager()->getMovableObjectIterator(
+      Ogre::ItemFactory::FACTORY_TYPE_NAME);
+  while (itor.hasMoreElements())
+  {
+    Ogre::MovableObject *object = itor.peekNext();
+    Ogre::Item *item = static_cast<Ogre::Item *>(object);
+    const size_t numSubItems = item->getNumSubItems();
+    for (size_t i = 0; i < numSubItems; ++i)
+    {
+      Ogre::SubItem *subItem = item->getSubItem(i);
+      subItem->removeCustomParameter(1u);
+    }
+    itor.moveNext();
+  }
+
+  // Restore Items with low level materials
+  for (auto subItemMat : this->materialMap)
+  {
+    subItemMat.first->setMaterial(subItemMat.second);
+  }
+  this->materialMap.clear();
+
+  // Remove the custom parameter (same reason as with Items)
   auto heightmaps = this->scene->Heightmaps();
   for (auto h : heightmaps)
   {
     auto heightmap = h.lock();
     if (heightmap)
-      heightmap->Parent()->SetVisible(true);
+      heightmap->Terra()->UnsetSolidColors();
   }
+
+  engine->SetGzOgreRenderingMode(GORM_NORMAL);
 }
 
 ////////////////////////////////////////////////

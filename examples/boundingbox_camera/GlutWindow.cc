@@ -32,14 +32,14 @@
 #include <fstream>
 #include <mutex>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Image.hh>
-#include <ignition/rendering/BoundingBoxCamera.hh>
-#include <ignition/rendering/Camera.hh>
-#include <ignition/rendering/Image.hh>
-#include <ignition/rendering/OrbitViewController.hh>
-#include <ignition/rendering/RayQuery.hh>
-#include <ignition/rendering/Scene.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Image.hh>
+#include <gz/rendering/BoundingBoxCamera.hh>
+#include <gz/rendering/Camera.hh>
+#include <gz/rendering/Image.hh>
+#include <gz/rendering/OrbitViewController.hh>
+#include <gz/rendering/RayQuery.hh>
+#include <gz/rendering/Scene.hh>
 
 #include "GlutWindow.hh"
 
@@ -50,12 +50,12 @@
 unsigned int imgw = 0;
 unsigned int imgh = 0;
 
-std::vector<ir::CameraPtr> g_cameras;
-ir::CameraPtr g_camera;
-ir::BoundingBoxCameraPtr g_camera_bbox;
-ir::ImagePtr g_image;
-ignition::common::ConnectionPtr g_connection;
-std::vector<ir::BoundingBox> g_boxes;
+std::vector<gz::rendering::CameraPtr> g_cameras;
+gz::rendering::CameraPtr g_camera;
+gz::rendering::BoundingBoxCameraPtr g_camera_bbox;
+gz::rendering::ImagePtr g_image;
+gz::common::ConnectionPtr g_connection;
+std::vector<gz::rendering::BoundingBox> g_boxes;
 std::mutex g_boxesMutex;
 int g_counter = 0;
 
@@ -75,9 +75,9 @@ bool g_initContext = false;
 #endif
 
 // view control variables
-ir::RayQueryPtr g_rayQuery;
-ir::OrbitViewController g_viewControl;
-ir::RayQueryResult g_target;
+gz::rendering::RayQueryPtr g_rayQuery;
+gz::rendering::OrbitViewController g_viewControl;
+gz::rendering::RayQueryResult g_target;
 struct mouseButton
 {
   int button = 0;
@@ -140,13 +140,13 @@ void handleMouse()
   std::lock_guard<std::mutex> lock(g_mouseMutex);
   // only ogre supports ray query for now so use
   // ogre camera located at camera index = 0.
-  ir::CameraPtr rayCamera = g_cameras[0];
+  gz::rendering::CameraPtr rayCamera = g_cameras[0];
   if (!g_rayQuery)
   {
     g_rayQuery = rayCamera->Scene()->CreateRayQuery();
     if (!g_rayQuery)
     {
-      ignerr << "Failed to create Ray Query" << std::endl;
+      gzerr << "Failed to create Ray Query" << std::endl;
       return;
     }
   }
@@ -159,7 +159,7 @@ void handleMouse()
     double ny = 1.0 -
         2.0 * g_mouse.y / static_cast<double>(rayCamera->ImageHeight());
 
-    g_rayQuery->SetFromCamera(rayCamera, ignition::math::Vector2d(nx, ny));
+    g_rayQuery->SetFromCamera(rayCamera, gz::math::Vector2d(nx, ny));
     g_target  = g_rayQuery->ClosestPoint();
     if (!g_target)
     {
@@ -177,7 +177,7 @@ void handleMouse()
           g_target.point);
       int factor = 1;
       double amount = -(scroll * factor) * (distance / 5.0);
-      for (ir::CameraPtr camera : g_cameras)
+      for (gz::rendering::CameraPtr camera : g_cameras)
       {
         g_viewControl.SetCamera(camera);
         g_viewControl.SetTarget(g_target.point);
@@ -189,7 +189,7 @@ void handleMouse()
   if (g_mouse.motionDirty)
   {
     g_mouse.motionDirty = false;
-    auto drag = ignition::math::Vector2d(g_mouse.dragX, g_mouse.dragY);
+    auto drag = gz::math::Vector2d(g_mouse.dragX, g_mouse.dragY);
 
     // left mouse button pan
     if (g_mouse.button == GLUT_LEFT_BUTTON && g_mouse.state == GLUT_DOWN)
@@ -221,7 +221,7 @@ void handleMouse()
       double amount = ((-g_mouse.dragY /
           static_cast<double>(rayCamera->ImageHeight()))
           * distance * tan(vfov/2.0) * 6.0);
-      for (ir::CameraPtr camera : g_cameras)
+      for (gz::rendering::CameraPtr camera : g_cameras)
       {
         g_viewControl.SetCamera(camera);
         g_viewControl.SetTarget(g_target.point);
@@ -281,34 +281,34 @@ bool SaveImage(const uint8_t *_data)
   uint height = g_camera->ImageHeight();
 
   // Attempt to create the directory if it doesn't exist
-  if (!ignition::common::isDirectory(savePath))
+  if (!gz::common::isDirectory(savePath))
   {
-    if (!ignition::common::createDirectories(savePath))
+    if (!gz::common::createDirectories(savePath))
     {
-      ignerr << "Could not create a directory [" << savePath
-             << "] for saving images.\n";
+      gzerr << "Could not create a directory [" << savePath
+            << "] for saving images.\n";
       return false;
     }
   }
 
   std::string filename = "image" + std::to_string(g_counter) + ".png";
 
-  ignition::common::Image localImage;
-  localImage.SetFromData(_data, width, height, ignition::common::Image::RGB_INT8);
+  gz::common::Image localImage;
+  localImage.SetFromData(_data, width, height, gz::common::Image::RGB_INT8);
 
-  localImage.SavePNG(ignition::common::joinPaths(savePath, filename));
+  localImage.SavePNG(gz::common::joinPaths(savePath, filename));
   return true;
 }
 
 //////////////////////////////////////////////////
-void SaveBoxes(const std::vector<ir::BoundingBox> &_boxes)
+void SaveBoxes(const std::vector<gz::rendering::BoundingBox> &_boxes)
 {
   std::string savePath = "boxes";
 
   // Attempt to create the directory if it doesn't exist
-  if (!ignition::common::isDirectory(savePath))
+  if (!gz::common::isDirectory(savePath))
   {
-    if (!ignition::common::createDirectories(savePath))
+    if (!gz::common::createDirectories(savePath))
       return;
   }
 
@@ -346,31 +346,31 @@ void keyboardCB(unsigned char _key, int, int)
 }
 
 //////////////////////////////////////////////////
-void OnNewBoundingBoxes(const std::vector<ir::BoundingBox> &_boxes)
+void OnNewBoundingBoxes(const std::vector<gz::rendering::BoundingBox> &_boxes)
 {
   std::lock_guard<std::mutex> lock(g_boxesMutex);
   unsigned char *data = g_image->Data<unsigned char>();
   for (const auto &box : _boxes)
-    g_camera_bbox->DrawBoundingBox(data, ignition::math::Color::Green, box);
+    g_camera_bbox->DrawBoundingBox(data, gz::math::Color::Green, box);
 
   g_boxes = _boxes;
 }
 
 //////////////////////////////////////////////////
-void initCamera(ir::CameraPtr _camera)
+void initCamera(gz::rendering::CameraPtr _camera)
 {
   g_camera = _camera;
   imgw = g_camera->ImageWidth();
   imgh = g_camera->ImageHeight();
-  ir::Image image = g_camera->CreateImage();
-  g_image = std::make_shared<ir::Image>(image);
+  gz::rendering::Image image = g_camera->CreateImage();
+  g_image = std::make_shared<gz::rendering::Image>(image);
   g_camera->Capture(*g_image);
 }
 
 //////////////////////////////////////////////////
-void initBoundingBoxCamera(ir::CameraPtr _camera)
+void initBoundingBoxCamera(gz::rendering::CameraPtr _camera)
 {
-  g_camera_bbox = std::dynamic_pointer_cast<ir::BoundingBoxCamera>(
+  g_camera_bbox = std::dynamic_pointer_cast<gz::rendering::BoundingBoxCamera>(
       _camera);
 
   // callback when new bounding boxes received.
@@ -405,11 +405,11 @@ void printUsage()
 }
 
 //////////////////////////////////////////////////
-void run(std::vector<ir::CameraPtr> &_cameras)
+void run(std::vector<gz::rendering::CameraPtr> &_cameras)
 {
   if (_cameras.empty())
   {
-    ignerr << "No cameras found. Scene will not be rendered" << std::endl;
+    gzerr << "No cameras found. Scene will not be rendered" << std::endl;
     return;
   }
 

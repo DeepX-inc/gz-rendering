@@ -15,51 +15,54 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2ArrowVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2AxisVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Capsule.hh"
-#include "ignition/rendering/ogre2/Ogre2COMVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2DepthCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2GizmoVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2GpuRays.hh"
-#include "ignition/rendering/ogre2/Ogre2Grid.hh"
-#include "ignition/rendering/ogre2/Ogre2Heightmap.hh"
-#include "ignition/rendering/ogre2/Ogre2InertiaVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2JointVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2Light.hh"
-#include "ignition/rendering/ogre2/Ogre2LightVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2LidarVisual.hh"
-#include "ignition/rendering/ogre2/Ogre2Marker.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2MeshFactory.hh"
-#include "ignition/rendering/ogre2/Ogre2Node.hh"
-#include "ignition/rendering/ogre2/Ogre2ParticleEmitter.hh"
-#include "ignition/rendering/ogre2/Ogre2RayQuery.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Text.hh"
-#include "ignition/rendering/ogre2/Ogre2ThermalCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2SegmentationCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
-#include "ignition/rendering/ogre2/Ogre2WireBox.hh"
+#include "gz/rendering/base/SceneExt.hh"
+
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2ArrowVisual.hh"
+#include "gz/rendering/ogre2/Ogre2AxisVisual.hh"
+#include "gz/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Capsule.hh"
+#include "gz/rendering/ogre2/Ogre2COMVisual.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2DepthCamera.hh"
+#include "gz/rendering/ogre2/Ogre2GizmoVisual.hh"
+#include "gz/rendering/ogre2/Ogre2GpuRays.hh"
+#include "gz/rendering/ogre2/Ogre2Grid.hh"
+#include "gz/rendering/ogre2/Ogre2Heightmap.hh"
+#include "gz/rendering/ogre2/Ogre2InertiaVisual.hh"
+#include "gz/rendering/ogre2/Ogre2JointVisual.hh"
+#include "gz/rendering/ogre2/Ogre2Light.hh"
+#include "gz/rendering/ogre2/Ogre2LightVisual.hh"
+#include "gz/rendering/ogre2/Ogre2LidarVisual.hh"
+#include "gz/rendering/ogre2/Ogre2Marker.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2MeshFactory.hh"
+#include "gz/rendering/ogre2/Ogre2Node.hh"
+#include "gz/rendering/ogre2/Ogre2ParticleEmitter.hh"
+#include "gz/rendering/ogre2/Ogre2Projector.hh"
+#include "gz/rendering/ogre2/Ogre2RayQuery.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2ThermalCamera.hh"
+#include "gz/rendering/ogre2/Ogre2SegmentationCamera.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/ogre2/Ogre2WireBox.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
 #endif
-#include <OgreMatrix4.h>
 #include <Compositor/OgreCompositorManager2.h>
 #include <Compositor/Pass/PassClear/OgreCompositorPassClearDef.h>
 #include <Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h>
 #include <Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h>
 #include <OgreDepthBuffer.h>
+#include <OgreMatrix4.h>
+#include <OgrePlatformInformation.h>
 #include <OgreRoot.h>
 #include <OgreSceneManager.h>
 #include <Overlay/OgreOverlayManager.h>
@@ -76,7 +79,7 @@
 #endif
 
 /// \brief Private data for the Ogre2Scene class
-class ignition::rendering::Ogre2ScenePrivate
+class gz::rendering::Ogre2ScenePrivate
 {
   /// \brief Flag to indicate if shadows need to be updated
   public: bool shadowsDirty = true;
@@ -88,26 +91,6 @@ class ignition::rendering::Ogre2ScenePrivate
   /// is incorrect
   public: bool frameUpdateStarted = false;
 
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-  /// \brief HACK: SetTime was not doing anything; but it is needed for
-  /// particle FXs to simulate forward.
-  ///
-  /// To avoid breaking apps that were already calling SetTime() or
-  /// were never calling it, apps that call SetTime( -1 ) will tell
-  /// ign-rendering6 to start honouring simulation time.
-  ///
-  /// Otherwise the old behavior is used; which uses real time for particle
-  /// FXs instead of simulation time.
-  ///
-  /// See https://github.com/ignitionrobotics/ign-rendering/issues/556
-  /// See https://github.com/ignitionrobotics/ign-rendering/pull/584
-  ///
-  /// TODO(anyone): Remove any code using hackIgnoringSimTime for
-  /// ign-rendering7 as we can safely default to simulation time
-  /// without worrying about breaking existing apps.
-  public: bool hackIgnoringSimTime = true;
-#endif
-
   /// \brief Total time elapsed in simulation since last rendering frame
   public: std::chrono::steady_clock::duration lastRenderSimTime{0};
 
@@ -116,19 +99,22 @@ class ignition::rendering::Ogre2ScenePrivate
   public: uint32_t currNumCameraPasses = 0u;
 
   /// \brief Flag to indicate if we should flush GPU very often (per camera)
-  public: uint8_t cameraPassCountPerGpuFlush = 0u;
+  public: uint8_t cameraPassCountPerGpuFlush = 6u;
 
   /// \brief Name of shadow compositor node
   public: const std::string kShadowNodeName = "PbsMaterialsShadowNode";
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
 Ogre2Scene::Ogre2Scene(unsigned int _id, const std::string &_name) :
   BaseScene(_id, _name), dataPtr(std::make_unique<Ogre2ScenePrivate>())
 {
+  // there should only be one scene / scene ext API
+  static Ogre2SceneExt ext(this);
+  this->SetExtension(&ext);
 }
 
 //////////////////////////////////////////////////
@@ -156,18 +142,9 @@ VisualPtr Ogre2Scene::RootVisual() const
 //////////////////////////////////////////////////
 void Ogre2Scene::SetTime(const std::chrono::steady_clock::duration &_time)
 {
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-  if (std::chrono::duration_cast<std::chrono::nanoseconds>(_time).count() == -1)
-  {
-    this->dataPtr->hackIgnoringSimTime = false;
-  }
-  else  // NOLINT
-#endif
-  {
-    this->time = _time;
-    if (_time < this->dataPtr->lastRenderSimTime)
-      this->dataPtr->lastRenderSimTime = _time;
-  }
+  this->time = _time;
+  if (_time < this->dataPtr->lastRenderSimTime)
+    this->dataPtr->lastRenderSimTime = _time;
 }
 
 //////////////////////////////////////////////////
@@ -205,7 +182,7 @@ void Ogre2Scene::SetAmbientLight(const math::Color &_color)
 //////////////////////////////////////////////////
 void Ogre2Scene::PreRender()
 {
-  IGN_ASSERT((this->LegacyAutoGpuFlush() ||
+  GZ_ASSERT((this->LegacyAutoGpuFlush() ||
               this->dataPtr->frameUpdateStarted == false),
              "Scene::PreRender called again before calling Scene::PostRender. "
              "See Scene::SetCameraPassCountPerGpuFlush for details");
@@ -240,18 +217,7 @@ void Ogre2Scene::PreRender()
                             currTime - this->dataPtr->lastRenderSimTime)
                             .count()) /
       1000000000.0);
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-    if (!this->dataPtr->hackIgnoringSimTime)
-    {
-      engine->OgreRoot()->_fireFrameStarted(evt);
-    }
-    else
-    {
-      engine->OgreRoot()->_fireFrameStarted();
-    }
-#else
     engine->OgreRoot()->_fireFrameStarted(evt);
-#endif
 
     this->ogreSceneManager->updateSceneGraph();
   }
@@ -260,7 +226,7 @@ void Ogre2Scene::PreRender()
 //////////////////////////////////////////////////
 void Ogre2Scene::PostRender()
 {
-  IGN_ASSERT((this->LegacyAutoGpuFlush() ||
+  GZ_ASSERT((this->LegacyAutoGpuFlush() ||
               this->dataPtr->frameUpdateStarted == true),
              "Scene::PostRender called again before calling Scene::PreRender. "
              "See Scene::SetCameraPassCountPerGpuFlush for details");
@@ -268,7 +234,7 @@ void Ogre2Scene::PostRender()
 
   if (dataPtr->cameraPassCountPerGpuFlush == 0u)
   {
-    ignwarn << "Calling Scene::PostRender but "
+    gzwarn << "Calling Scene::PostRender but "
                "SetCameraPassCountPerGpuFlush is 0 (legacy mode for clients"
                " not calling PostRender)."
                "Read the documentation on SetCameraPassCountPerGpuFlush, "
@@ -339,27 +305,31 @@ void Ogre2Scene::StartRendering(Ogre::Camera *_camera)
                             currTime - this->dataPtr->lastRenderSimTime)
                             .count()) /
       1000000000.0);
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-    if (!this->dataPtr->hackIgnoringSimTime)
-    {
-      engine->OgreRoot()->_fireFrameStarted(evt);
-    }
-    else
-    {
-      engine->OgreRoot()->_fireFrameStarted();
-    }
-#else
     engine->OgreRoot()->_fireFrameStarted(evt);
-#endif
 
     this->ogreSceneManager->updateSceneGraph();
   }
   else
   {
-    IGN_ASSERT(this->dataPtr->frameUpdateStarted == true,
+    GZ_ASSERT(this->dataPtr->frameUpdateStarted == true,
                "Started rendering without first calling Scene::PreRender. "
                "See Scene::SetCameraPassCountPerGpuFlush for details");
   }
+
+#if OGRE_VERSION_MAJOR != 2 || OGRE_VERSION_MINOR != 1
+  // OgreNext 2.2+ has a feature where all textures are asynchronously loaded
+  // by default; and a blank texture will be shown until it's ready.
+  //
+  // This is great for low latency interactions & most games; but terrible
+  // if we want all our simulated frames to be perfect & deterministic
+  // results
+  //
+  // We don't want placeholder textures to be used; thus wait until all
+  // textures being loaded are done.
+  Ogre::RenderSystem *renderSys =
+    this->ogreSceneManager->getDestinationRenderSystem();
+  renderSys->getTextureGpuManager()->waitForStreamingCompletion();
+#endif
 }
 
 //////////////////////////////////////////////////
@@ -421,18 +391,7 @@ void Ogre2Scene::EndFrame()
                           currTime - this->dataPtr->lastRenderSimTime)
                           .count()) /
     1000000000.0);
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-  if (!this->dataPtr->hackIgnoringSimTime)
-  {
-    ogreRoot->_fireFrameRenderingQueued(evt);
-  }
-  else
-  {
-    ogreRoot->_fireFrameRenderingQueued();
-  }
-#else
   ogreRoot->_fireFrameRenderingQueued(evt);
-#endif
   this->dataPtr->lastRenderSimTime = currTime;
 
   auto itor = ogreRoot->getSceneManagerIterator();
@@ -582,12 +541,12 @@ void Ogre2Scene::UpdateAllHeightmaps(Ogre::Camera *_camera)
 #if OGRE_VERSION_MAJOR == 2 && OGRE_VERSION_MINOR == 2
   if (!this->heightmaps.empty())
   {
-      // Ogre 2.2 expects ign to provide Terra's shadow texture
+      // Ogre 2.2 expects gz to provide Terra's shadow texture
       // to each compositor that may use it to properly set barriers
       // (otherwise GPU may start rendering before the Compute Shader
       // is done ray marching terrain shadows)
       //
-      // This is insane with so many possible compositors ign has,
+      // This is insane with so many possible compositors gz has,
       // so we do a brute-force approach here (not that expensive actually)
       //
       // Ogre 2.3 got rid of this requirement due to being very user-hostile
@@ -637,7 +596,7 @@ void Ogre2Scene::UpdateShadowNode()
         dirLightCount);
     spotPointLightCount = std::min(
         std::max(maxShadowMaps - dirLightCount * 3, 0u), spotPointLightCount);
-    ignwarn << "Number of shadow-casting lights exceeds the limit supported by "
+    gzwarn << "Number of shadow-casting lights exceeds the limit supported by "
             << "the underlying rendering engine ogre2. Limiting to "
             << dirLightCount << " directional lights and "
             << spotPointLightCount << " point / spot lights" << std::endl;
@@ -1328,11 +1287,12 @@ RenderTexturePtr Ogre2Scene::CreateRenderTextureImpl(unsigned int _id,
 }
 
 //////////////////////////////////////////////////
-RenderWindowPtr Ogre2Scene::CreateRenderWindowImpl(unsigned int /*_id*/,
-    const std::string &/*_name*/)
+RenderWindowPtr Ogre2Scene::CreateRenderWindowImpl(unsigned int _id,
+    const std::string &_name)
 {
-  // TODO(anyone)
-  return RenderWindowPtr();
+  Ogre2RenderWindowPtr renderWindow(new Ogre2RenderWindow);
+  bool result = this->InitObject(renderWindow, _id, _name);
+  return (result) ? renderWindow : nullptr;
 }
 
 //////////////////////////////////////////////////
@@ -1352,6 +1312,15 @@ ParticleEmitterPtr Ogre2Scene::CreateParticleEmitterImpl(unsigned int _id,
   bool result = this->InitObject(visual, _id, _name);
 
   return (result) ? visual : nullptr;
+}
+
+//////////////////////////////////////////////////
+ProjectorPtr Ogre2Scene::CreateProjectorImpl(unsigned int _id,
+    const std::string &_name)
+{
+  Ogre2ProjectorPtr projector(new Ogre2Projector);
+  bool result = this->InitObject(projector, _id, _name);
+  return (result) ? projector : nullptr;
 }
 
 //////////////////////////////////////////////////
@@ -1402,7 +1371,7 @@ void Ogre2Scene::CreateContext()
   // this is required for non-shadow-casting point lights and
   // spot lights to work
   this->ogreSceneManager->setForwardClustered(
-    true, 16, 8, 24, 96, 0, 0, 1, 500);
+    true, 16, 8, 24, 96, 4, 0, 1, 500);
 }
 
 //////////////////////////////////////////////////
@@ -1419,7 +1388,7 @@ void Ogre2Scene::CreateRootVisual()
   // check if root visual created successfully
   if (!this->InitObject(this->rootVisual, rootId, rootName))
   {
-    ignerr << "Unable to create root visual" << std::endl;
+    gzerr << "Unable to create root visual" << std::endl;
     this->rootVisual = nullptr;
     return;
   }
@@ -1479,7 +1448,7 @@ void Ogre2Scene::SetSkyEnabled(bool _enabled)
       // paths are already set up in Ogre2RenderEngine.cc
       std::string skyboxEnvMap = "skybox.dds";
       skyboxMat = this->CreateMaterial(skyboxMatName);
-      skyboxMat->SetEnvironmentMap(skyboxEnvMap);
+      skyboxMat->SetEnvironmentMap(skyboxEnvMap, nullptr);
     }
   }
   this->SetBackgroundMaterial(skyboxMat);
@@ -1499,4 +1468,41 @@ void Ogre2Scene::SetSkyEnabled(bool _enabled)
 bool Ogre2Scene::SkyEnabled() const
 {
   return this->dataPtr->skyEnabled;
+}
+
+//////////////////////////////////////////////////
+unsigned int Ogre2Scene::CreateObjectId()
+{
+  return BaseScene::CreateObjectId();
+}
+
+//////////////////////////////////////////////////
+Ogre2SceneExt::Ogre2SceneExt(Scene *_scene)
+    : SceneExt(_scene)
+{
+}
+
+//////////////////////////////////////////////////
+ObjectPtr Ogre2SceneExt::CreateExt(const std::string &_type,
+    const std::string &_name)
+{
+  if (_type == "projector")
+  {
+    Ogre2Scene *ogreScene = dynamic_cast<Ogre2Scene *>(this->scene);
+    unsigned int objId = ogreScene->CreateObjectId();
+    std::string objName = _name;
+    if (objName.empty())
+    {
+      std::stringstream ss;
+      ss << ogreScene->Name() << "::" <<  "Projector";
+      ss << "(" << std::to_string(objId) << ")";
+      objName = ss.str();
+    }
+    ProjectorPtr projector = ogreScene->CreateProjectorImpl(
+        objId, objName);
+    bool result = ogreScene->Visuals()->Add(projector);
+    return (result) ? projector : nullptr;
+  }
+
+  return ObjectPtr();
 }

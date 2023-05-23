@@ -15,17 +15,18 @@
  *
  */
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Filesystem.hh>
 
-#include "ignition/rendering/ShaderParams.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreRenderEngine.hh"
-#include "ignition/rendering/ogre/OgreRTShaderSystem.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/InstallationDirectories.hh"
+#include "gz/rendering/ShaderParams.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreRenderEngine.hh"
+#include "gz/rendering/ogre/OgreRTShaderSystem.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -290,7 +291,8 @@ std::string OgreMaterial::Texture() const
 }
 
 //////////////////////////////////////////////////
-void OgreMaterial::SetTexture(const std::string &_name)
+void OgreMaterial::SetTexture(const std::string &_name,
+                              const std::shared_ptr<const common::Image> &_img)
 {
   if (_name.empty())
   {
@@ -299,13 +301,24 @@ void OgreMaterial::SetTexture(const std::string &_name)
   }
 
   this->textureName = _name;
-  this->SetTextureImpl(this->textureName);
+  this->textureData = _img;
+  if (_img == nullptr)
+    this->SetTextureImpl(this->textureName);
+  else
+    this->SetTextureDataImpl(this->textureName, _img);
+}
+
+//////////////////////////////////////////////////
+std::shared_ptr<const common::Image> OgreMaterial::TextureData() const
+{
+  return this->textureData;
 }
 
 //////////////////////////////////////////////////
 void OgreMaterial::ClearTexture()
 {
   this->textureName = "";
+  this->textureData = nullptr;
   this->ogreTexState->setBlank();
   this->UpdateColorOperation();
 }
@@ -323,7 +336,14 @@ std::string OgreMaterial::NormalMap() const
 }
 
 //////////////////////////////////////////////////
-void OgreMaterial::SetNormalMap(const std::string &_name)
+std::shared_ptr<const common::Image> OgreMaterial::NormalMapData() const
+{
+  return this->normalMapData;
+}
+
+//////////////////////////////////////////////////
+void OgreMaterial::SetNormalMap(const std::string &_name,
+  const std::shared_ptr<const common::Image>& _img)
 {
   if (_name.empty())
   {
@@ -332,6 +352,7 @@ void OgreMaterial::SetNormalMap(const std::string &_name)
   }
 
   this->normalMapName = _name;
+  this->normalMapData = _img;
   // TODO(anyone): implement
   // this->SetNormalMapImpl(texture);
 }
@@ -340,6 +361,7 @@ void OgreMaterial::SetNormalMap(const std::string &_name)
 void OgreMaterial::ClearNormalMap()
 {
   this->normalMapName = "";
+  this->normalMapData = nullptr;
 }
 
 //////////////////////////////////////////////////
@@ -383,7 +405,7 @@ void OgreMaterial::UpdateShaderParams()
 void OgreMaterial::UpdateShaderParams(ConstShaderParamsPtr _params,
     Ogre::GpuProgramParametersSharedPtr _ogreParams)
 {
-  for (const auto name_param : *_params)
+  for (const auto &name_param : *_params)
   {
     if (ShaderParam::PARAM_FLOAT == name_param.second.Type())
     {
@@ -430,7 +452,7 @@ void OgreMaterial::SetVertexShader(const std::string &_path)
 
   if (!common::exists(_path))
   {
-    ignerr << "Vertex shader path does not exist: " << _path << std::endl;
+    gzerr << "Vertex shader path does not exist: " << _path << std::endl;
     return;
   }
 
@@ -439,7 +461,7 @@ void OgreMaterial::SetVertexShader(const std::string &_path)
 
   Ogre::HighLevelGpuProgramPtr vertexShader =
     Ogre::HighLevelGpuProgramManager::getSingletonPtr()->createProgram(
-        "__ignition_rendering_vertex__" + _path,
+        "__gz_rendering_vertex__" + _path,
         this->ogreGroup,
         "glsl", Ogre::GpuProgramType::GPT_VERTEX_PROGRAM);
 
@@ -479,7 +501,7 @@ void OgreMaterial::SetFragmentShader(const std::string &_path)
 
   if (!common::exists(_path))
   {
-    ignerr << "Fragment shader path does not exist: " << _path << std::endl;
+    gzerr << "Fragment shader path does not exist: " << _path << std::endl;
     return;
   }
 
@@ -488,7 +510,7 @@ void OgreMaterial::SetFragmentShader(const std::string &_path)
 
   Ogre::HighLevelGpuProgramPtr fragmentShader =
     Ogre::HighLevelGpuProgramManager::getSingleton().createProgram(
-        "__ignition_rendering_fragment__" + _path,
+        "__gz_rendering_fragment__" + _path,
         this->ogreGroup,
         "glsl", Ogre::GpuProgramType::GPT_FRAGMENT_PROGRAM);
 
@@ -548,12 +570,12 @@ void OgreMaterial::LoadOneImage(const std::string &_name, Ogre::Image &_image)
         _image.load(path, this->ogreGroup);
       }
       else
-        ignerr << "Unable to find texture image: " << _name << std::endl;
+        gzerr << "Unable to find texture image: " << _name << std::endl;
     }
   }
   catch (const Ogre::Exception &ex)
   {
-    ignerr << "Unable to load texture image: " << ex.what() << std::endl;
+    gzerr << "Unable to load texture image: " << ex.what() << std::endl;
   }
 }
 
@@ -565,6 +587,46 @@ void OgreMaterial::SetTextureImpl(const std::string &_texture)
   {
     Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
         _texture, "FileSystem", this->ogreGroup);
+  }
+
+  this->ogreTexState->setTextureName(_texture);
+  this->UpdateColorOperation();
+}
+
+//////////////////////////////////////////////////
+void OgreMaterial::SetTextureDataImpl(const std::string &_texture,
+  const std::shared_ptr<const common::Image> &_img)
+{
+  // Create the texture only if it was not created already
+  if (!Ogre::ResourceGroupManager::getSingleton().resourceExists(
+      this->ogreGroup, _texture))
+  {
+    auto ogreTexture =
+    Ogre::TextureManager::getSingleton().createManual(
+        _texture,
+        "General",
+        Ogre::TEX_TYPE_2D,
+        _img->Width(),
+        _img->Height(),
+        0,
+        Ogre::PF_R8G8B8A8);
+    Ogre::HardwarePixelBufferSharedPtr pixelBuffer = ogreTexture->getBuffer();
+    pixelBuffer->lock(Ogre::HardwareBuffer::HBL_NORMAL);
+    const Ogre::PixelBox &pixelBox = pixelBuffer->getCurrentLock();
+
+    auto data = _img->RGBAData();
+    // TODO(anyone) Why we need to switch red and blue again for OGRE1?
+    for (unsigned int r = 0; r < _img->Height(); ++r)
+    {
+      for (unsigned int c = 0; c < _img->Width(); ++c)
+      {
+        int pixIdx = (r * _img->Width() + c) * 4;
+        std::swap(data[pixIdx], data[pixIdx + 2]);
+      }
+    }
+
+    memcpy(pixelBox.data, &data[0], data.size());
+    pixelBuffer->unlock();
   }
 
   this->ogreTexState->setTextureName(_texture);
@@ -660,9 +722,23 @@ void OgreMaterial::SetDepthMaterial(const double _far,
 
   // TODO(anyone): convert depth configuration into a ShaderType
   // Get shader parameters path
-  const char *env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env = std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
 
   // path to look for vertex and fragment shader parameters
   std::string depth_vertex_shader_path = common::joinPaths(

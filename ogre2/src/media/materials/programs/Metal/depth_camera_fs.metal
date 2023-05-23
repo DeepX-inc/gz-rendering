@@ -42,13 +42,23 @@ struct Params
   float rnd;
 };
 
-float packFloat(float4 color)
+uint packUnorm4x8Gz(float4 color)
 {
-  int rgba = (int(color.x * 255.0) << 24) +
-             (int(color.y * 255.0) << 16) +
-             (int(color.z * 255.0) << 8) +
-             int(color.w * 255.0);
-  return as_type<float>(rgba);
+  uint rgba = (uint(round(color.x * 255.0)) << 24u) +
+              (uint(round(color.y * 255.0)) << 16u) +
+              (uint(round(color.z * 255.0)) << 8u) +
+              uint(round(color.w * 255.0));
+  return rgba;
+}
+
+inline float toSRGB( float x )
+{
+  return (x < 0.0031308 ? x * 12.92 : 1.055 * pow( x, 0.41666 ) - 0.055 );
+}
+
+inline float4 toSRGB( float4 x )
+{
+  return float4( toSRGB( x.x ), toSRGB( x.y ), toSRGB( x.z ), x.w );
 }
 
 // see gaussian_noise_fs.metal for documentation on the rand and gaussrand
@@ -79,7 +89,7 @@ float4 gaussrand(float2 co, float3 offsets, float mean, float stddev)
   return float4(Z, Z, Z, 0.0);
 }
 
-fragment float4 main_metal
+fragment uint4 main_metal
 (
   PS_INPUT inPs [[stage_in]],
   texture2d<float>  depthTexture [[texture(0)]],
@@ -167,7 +177,7 @@ fragment float4 main_metal
     // due to the scatter effect. We should still render particles in the color
     // image
     // todo(iche033) handle case when background is a cubemap
-    if (hasBackground == 0 && particle.x < 1e-6)
+    if (p.hasBackground == 0 && particle.x < 1e-6)
     {
       color = float4(p.backgroundColor, 1.0);
     }
@@ -185,17 +195,15 @@ fragment float4 main_metal
 
     // clamp to background color only if it is not a particle pixel
     // todo(iche033) handle case when background is a cubemap
-    if (hasBackground == 0 && particle.x < 1e-6)
+    if (p.hasBackground == 0 && particle.x < 1e-6)
     {
       color = float4(p.backgroundColor, 1.0);
     }
   }
 
-  // gamma correct - using same method as:
-  // https://bitbucket.org/sinbad/ogre/src/v2-1/Samples/Media/Hlms/Pbs/GLSL/PixelShader_ps.glsl#lines-513
-  color = sqrt(color);
+  // gamma correct
+  color = toSRGB(color);
 
-  float rgba = packFloat(color);
-  float4 fragColor(point, rgba);
+  uint4 fragColor(as_type<uint3>(point), packUnorm4x8Gz(color));
   return fragColor;
 }

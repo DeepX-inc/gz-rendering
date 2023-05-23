@@ -27,15 +27,15 @@
 #include <iostream>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/rendering.hh>
-#include <ignition/math.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/rendering.hh>
+#include <gz/math.hh>
 
 #include "example_config.hh"
 #include "GlutWindow.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 const std::string RESOURCE_PATH =
@@ -194,7 +194,7 @@ void buildScene(ScenePtr _scene, BoundingBoxType _type)
   camera->SetImageHeight(600);
   camera->SetImageFormat(PixelFormat::PF_R8G8B8);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   camera->SetNearClipPlane(0.001);
   camera->SetFarClipPlane(1000);
   root->AddChild(camera);
@@ -223,8 +223,8 @@ std::vector<CameraPtr> createCameras(const std::string &_engineName,
   RenderEngine *engine = rendering::engine(_engineName);
   if (!engine)
   {
-    ignwarn << "Engine '" << _engineName
-              << "' is not supported" << std::endl;
+    gzwarn << "Engine '" << _engineName
+           << "' is not supported" << std::endl;
     return std::vector<CameraPtr>();
   }
   ScenePtr scene = engine->CreateScene("scene");
@@ -263,10 +263,10 @@ int main(int _argc, char** _argv)
     }
     else if (type3d.compare(_argv[1]) != 0)
     {
-      ignerr << "Invalid bounding box type given. Valid options are: "
-             << type3d << ", " << type2dVisible << ", or "
-             << type2dFull << "\n";
-      ignerr << "you entered " << _argv[1] << "\n";
+      gzerr << "Invalid bounding box type given. Valid options are: "
+            << type3d << ", " << type2dVisible << ", or "
+            << type2dFull << "\n";
+      gzerr << "you entered " << _argv[1] << "\n";
       return -1;
     }
   }

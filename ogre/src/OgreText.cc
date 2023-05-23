@@ -20,17 +20,17 @@
   #include <windows.h>
 #endif
 
-#include <ignition/common/Util.hh>
-#include <ignition/common/Console.hh>
+#include <gz/common/Util.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreText.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreText.hh"
 
 #define POS_TEX_BINDING    0
 #define COLOUR_BINDING     1
 
-class ignition::rendering::OgreMovableText
+class gz::rendering::OgreMovableText
   : public Ogre::MovableObject, public Ogre::Renderable
 {
   /// \brief Constructor
@@ -40,7 +40,7 @@ class ignition::rendering::OgreMovableText
   public: virtual ~OgreMovableText();
 
   /// \brief Set the font. Valid fonts are defined in
-  /// media/fonts/ignition-rendering.fontdef
+  /// media/fonts/gz-rendering.fontdef
   /// \param[in] _font Name of the font
   public: void SetFontName(const std::string &_font);
 
@@ -50,7 +50,7 @@ class ignition::rendering::OgreMovableText
 
   /// \brief Set the text color.
   /// \param[in] _color Text color.
-  public: void SetColor(const ignition::math::Color &_color);
+  public: void SetColor(const gz::math::Color &_color);
 
   /// \brief Set the height of the character in meters.
   /// \param[in] _height Height of the characters.
@@ -77,7 +77,7 @@ class ignition::rendering::OgreMovableText
 
   /// \brief Get the axis aligned bounding box of the text.
   /// \return The axis aligned bounding box.
-  public: ignition::math::AxisAlignedBox AABB() const;
+  public: gz::math::AxisAlignedBox AABB() const;
 
   /// \brief Setup the geometry based on input text string.
   public: void SetupGeometry();
@@ -187,7 +187,7 @@ class ignition::rendering::OgreMovableText
   private: std::string text;
 
   /// \brief Text color
-  private: ignition::math::Color color;
+  private: gz::math::Color color;
 
   /// \brief Character height in meters
   private: float charHeight = 0.0;
@@ -210,7 +210,7 @@ class ignition::rendering::OgreMovableText
 };
 
 /// \brief Private data for the OgreText class.
-class ignition::rendering::OgreTextPrivate
+class gz::rendering::OgreTextPrivate
 {
   /// \brief Text materal
   public: OgreMaterialPtr material;
@@ -219,7 +219,7 @@ class ignition::rendering::OgreTextPrivate
   public: std::unique_ptr<OgreMovableText> ogreObj;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -257,7 +257,7 @@ void OgreMovableText::SetTextString(const std::string &_text)
 }
 
 //////////////////////////////////////////////////
-void OgreMovableText::SetColor(const ignition::math::Color &_color)
+void OgreMovableText::SetColor(const math::Color &_color)
 {
   if (this->color != _color)
   {
@@ -323,13 +323,13 @@ void OgreMovableText::SetShowOnTop(const bool _onTop)
 }
 
 //////////////////////////////////////////////////
-ignition::math::AxisAlignedBox OgreMovableText::AABB() const
+math::AxisAlignedBox OgreMovableText::AABB() const
 {
-  return ignition::math::AxisAlignedBox(
-      ignition::math::Vector3d(this->aabb->getMinimum().x,
+  return math::AxisAlignedBox(
+      math::Vector3d(this->aabb->getMinimum().x,
                     this->aabb->getMinimum().y,
                     this->aabb->getMinimum().z),
-      ignition::math::Vector3d(this->aabb->getMaximum().x,
+      math::Vector3d(this->aabb->getMaximum().x,
                     this->aabb->getMaximum().y,
                     this->aabb->getMaximum().z));
 }
@@ -362,7 +362,7 @@ void OgreMovableText::SetFontNameImpl(const std::string &_newFontName)
 
     if (!ogreFont)
     {
-      ignerr << "Could not find font " + _newFontName << std::endl;
+      gzerr << "Could not find font " + _newFontName << std::endl;
     }
     this->font = ogreFont;
     this->fontName = _newFontName;
@@ -402,11 +402,11 @@ void OgreMovableText::SetFontNameImpl(const std::string &_newFontName)
 //////////////////////////////////////////////////
 void OgreMovableText::SetupGeometry()
 {
-  IGN_ASSERT(this->font, "font class member is null");
+  GZ_ASSERT(this->font, "font class member is null");
 #if OGRE_VERSION_LT_1_11_0
-  IGN_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
+  GZ_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
 #else
-  IGN_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
+  GZ_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
 #endif
 
   Ogre::VertexDeclaration *decl = nullptr;
@@ -489,7 +489,7 @@ void OgreMovableText::SetupGeometry()
   pVert = static_cast<float*>(ptbuf->lock(Ogre::HardwareBuffer::HBL_DISCARD));
 
   // Derive space width from a capital A
-  if (ignition::math::equal(this->spaceWidth, 0.0f))
+  if (math::equal(this->spaceWidth, 0.0f))
   {
     this->spaceWidth = this->font->getGlyphAspectRatio('A') *
         this->charHeight * 2.0;
@@ -739,11 +739,11 @@ void OgreMovableText::UpdateColors()
   Ogre::RGBA *pDest{nullptr};
   unsigned int i;
 
-  IGN_ASSERT(this->font, "font class member is null");
+  GZ_ASSERT(this->font, "font class member is null");
 #if OGRE_VERSION_LT_1_11_0
-  IGN_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
+  GZ_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
 #else
-  IGN_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
+  GZ_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
 #endif
 
   // Convert to system-specific
@@ -860,9 +860,9 @@ void OgreMovableText::getRenderOperation(Ogre::RenderOperation &_op)
 const Ogre::MaterialPtr &OgreMovableText::getMaterial(void) const
 {
 #if OGRE_VERSION_LT_1_11_0
-  IGN_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
+  GZ_ASSERT(!this->ogreMaterial.isNull(), "ogreMaterial class member is null");
 #else
-  IGN_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
+  GZ_ASSERT(this->ogreMaterial, "ogreMaterial class member is null");
 #endif
   return this->ogreMaterial;
 }
@@ -945,7 +945,7 @@ void OgreText::SetMaterial(MaterialPtr _material, bool _unique)
 
   if (!derived)
   {
-    ignerr << "Cannot assign ogreMaterial created by another render-engine"
+    gzerr << "Cannot assign ogreMaterial created by another render-engine"
         << std::endl;
 
     return;
@@ -983,7 +983,7 @@ void OgreText::SetTextString(const std::string &_text)
 }
 
 //////////////////////////////////////////////////
-void OgreText::SetColor(const ignition::math::Color &_color)
+void OgreText::SetColor(const math::Color &_color)
 {
   BaseText::SetColor(_color);
   this->dataPtr->ogreObj->SetColor(_color);
@@ -1026,7 +1026,7 @@ void OgreText::SetShowOnTop(const bool _onTop)
 }
 
 //////////////////////////////////////////////////
-ignition::math::AxisAlignedBox OgreText::AABB() const
+math::AxisAlignedBox OgreText::AABB() const
 {
   return this->dataPtr->ogreObj->AABB();
 }

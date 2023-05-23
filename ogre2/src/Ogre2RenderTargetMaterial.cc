@@ -15,7 +15,7 @@
  *
  */
 
-#include "ignition/rendering/ogre2/Ogre2RenderTargetMaterial.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTargetMaterial.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -26,7 +26,7 @@
   #pragma warning(pop)
 #endif
 
-using namespace ignition::rendering;
+using namespace gz::rendering;
 
 
 //////////////////////////////////////////////////
@@ -36,7 +36,7 @@ Ogre2RenderTargetMaterial::Ogre2RenderTargetMaterial(
   scene(_scene), renderCamera(_renderCamera), material(_material)
 {
   // Pick a name that's unlikely to collide with a real material scheme
-  this->schemeName = "__ignition__rendering__Ogre2RenderTargetMaterial";
+  this->schemeName = "__gz__rendering__Ogre2RenderTargetMaterial";
   Ogre::Viewport* renderViewport =
     _scene->getCurrentViewport0();
   renderViewport->setMaterialScheme(this->schemeName);

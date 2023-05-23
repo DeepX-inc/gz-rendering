@@ -18,24 +18,24 @@
 
 #include <sstream>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Material.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/common/Skeleton.hh>
-#include <ignition/common/SkeletonAnimation.hh>
-#include <ignition/common/SubMesh.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Material.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/common/Skeleton.hh>
+#include <gz/common/SkeletonAnimation.hh>
+#include <gz/common/SubMesh.hh>
 
-#include <ignition/math/Matrix4.hh>
+#include <gz/math/Matrix4.hh>
 
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreMesh.hh"
-#include "ignition/rendering/ogre/OgreMeshFactory.hh"
-#include "ignition/rendering/ogre/OgreRenderEngine.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreStorage.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreMesh.hh"
+#include "gz/rendering/ogre/OgreMeshFactory.hh"
+#include "gz/rendering/ogre/OgreRenderEngine.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreStorage.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -267,7 +267,7 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
       else if (subMesh.SubMeshPrimitiveType() == common::SubMesh::POINTS)
         ogreSubMesh->operationType = Ogre::RenderOperation::OT_POINT_LIST;
       else
-        ignerr << "Unknown primitive type["
+        gzerr << "Unknown primitive type["
               << subMesh.SubMeshPrimitiveType() << "]\n";
 
       ogreSubMesh->vertexData = new Ogre::VertexData();
@@ -409,7 +409,10 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
         *indices++ = subMesh.Index(j);
 
       common::MaterialPtr material;
-      material = _desc.mesh->MaterialByIndex(subMesh.MaterialIndex());
+      if (const auto subMeshIdx = subMesh.GetMaterialIndex())
+      {
+        material = _desc.mesh->MaterialByIndex(subMeshIdx.value());
+      }
 
       MaterialPtr mat = this->scene->CreateMaterial();
       if (material)
@@ -437,7 +440,8 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
     math::Vector3d max = _desc.mesh->Max();
     math::Vector3d min = _desc.mesh->Min();
 
-    if (_desc.mesh->HasSkeleton())
+    if (_desc.mesh->HasSkeleton() &&
+        _desc.mesh->MeshSkeleton()->AnimationCount() != 0)
     {
       min = math::Vector3d(-1, -1, -1);
       max = math::Vector3d(1, 1, 1);
@@ -445,13 +449,13 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
 
     if (!max.IsFinite())
     {
-      ignerr << "Max bounding box is not finite[" << max << "]" << std::endl;
+      gzerr << "Max bounding box is not finite[" << max << "]" << std::endl;
       return false;
     }
 
     if (!min.IsFinite())
     {
-      ignerr << "Min bounding box is not finite[" << min << "]" << std::endl;
+      gzerr << "Min bounding box is not finite[" << min << "]" << std::endl;
       return false;
     }
 
@@ -465,7 +469,7 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
   }
   catch(Ogre::Exception &e)
   {
-    ignerr << "Unable to insert mesh[" << e.getDescription() << "]"
+    gzerr << "Unable to insert mesh[" << e.getDescription() << "]"
         << std::endl;
     return false;
   }
@@ -476,7 +480,7 @@ bool OgreMeshFactory::LoadImpl(const MeshDescriptor &_desc)
     if (!_desc.subMeshName.empty())
       msg += ", submesh: '" + _desc.subMeshName + "'";
     msg += ". Mesh will be empty.";
-    ignwarn << msg << std::endl;
+    gzwarn << msg << std::endl;
   }
 
   return true;
@@ -497,19 +501,19 @@ bool OgreMeshFactory::Validate(const MeshDescriptor &_desc)
 {
   if (!_desc.mesh && _desc.meshName.empty())
   {
-    ignerr << "Invalid mesh-descriptor, no mesh specified" << std::endl;
+    gzerr << "Invalid mesh-descriptor, no mesh specified" << std::endl;
     return false;
   }
 
   if (!_desc.mesh)
   {
-    ignerr << "Cannot load null mesh" << std::endl;
+    gzerr << "Cannot load null mesh" << std::endl;
     return false;
   }
 
   if (_desc.mesh->SubMeshCount() == 0)
   {
-    ignerr << "Cannot load mesh with zero sub-meshes" << std::endl;
+    gzerr << "Cannot load mesh with zero sub-meshes" << std::endl;
     return false;
   }
 

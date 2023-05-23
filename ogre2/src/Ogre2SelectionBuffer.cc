@@ -16,16 +16,17 @@
 */
 
 #include <memory>
-#include <ignition/math/Color.hh>
+#include <gz/math/Color.hh>
 
-#include "ignition/common/Console.hh"
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2MaterialSwitcher.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2SelectionBuffer.hh"
+#include "gz/common/Console.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Heightmap.hh"
+#include "gz/rendering/ogre2/Ogre2MaterialSwitcher.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2SelectionBuffer.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -48,10 +49,10 @@
   #pragma warning(pop)
 #endif
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-class ignition::rendering::Ogre2SelectionBufferPrivate
+class gz::rendering::Ogre2SelectionBufferPrivate
 {
   /// \brief This is a material listener and a RenderTargetListener.
   /// The material switcher is applied to only the selection camera
@@ -114,7 +115,7 @@ Ogre2SelectionBuffer::Ogre2SelectionBuffer(const std::string &_cameraName,
       _cameraName);
   if (!this->dataPtr->camera)
   {
-    ignerr << "No camera found. Unable to create Ogre 2 selection buffer "
+    gzerr << "No camera found. Unable to create Ogre 2 selection buffer "
            << std::endl;
     return;
   }
@@ -347,7 +348,7 @@ void Ogre2SelectionBuffer::CreateRTTBuffer()
         colorTargetDef->addPass(Ogre::PASS_SCENE));
     passScene->setAllLoadActions(Ogre::LoadAction::Clear);
     passScene->setAllClearColours(Ogre::ColourValue::Black);
-    passScene->mVisibilityMask = IGN_VISIBILITY_SELECTABLE;
+    passScene->setVisibilityMask(GZ_VISIBILITY_SELECTABLE);
   }
 
   Ogre::CompositorTargetDef *targetDef = nodeDef->addTargetPass("rt");
@@ -470,6 +471,9 @@ bool Ogre2SelectionBuffer::ExecuteQuery(const int _x, const int _y,
   unsigned int g = *rgba >> 16 & 0xFF;
   unsigned int b = *rgba >> 8 & 0xFF;
 
+  // todo(anyone) shaders may return nan values for semi-transparent objects
+  // if there are no objects in the background (behind the semi-transparent
+  // object)
   math::Vector3d point(pixel[0], pixel[1], pixel[2]);
 
   auto rot = Ogre2Conversions::Convert(
@@ -479,7 +483,7 @@ bool Ogre2SelectionBuffer::ExecuteQuery(const int _x, const int _y,
   math::Pose3d p(pos, rot);
   point = rot * point + pos;
 
-  ignition::math::Color cv;
+  gz::math::Color cv;
   cv.A(1.0);
   cv.R(r / 255.0);
   cv.G(g / 255.0);
@@ -497,7 +501,28 @@ bool Ogre2SelectionBuffer::ExecuteQuery(const int _x, const int _y,
     auto collection = this->dataPtr->sceneMgr->findMovableObjects(
         Ogre::ItemFactory::FACTORY_TYPE_NAME, entName);
     if (collection.empty())
+    {
+      // try heightmaps
+      auto heightmaps = this->dataPtr->scene->Heightmaps();
+      for (auto h : heightmaps)
+      {
+        auto heightmap = h.lock();
+        if (heightmap)
+        {
+          if (entName == heightmap->Name())
+          {
+            // \todo(anyone) change return type to MovableObject instead of item
+            // in gz-rendering8 so we can uncomment the line below to return a
+            //  heightmap object
+            // _item = std::dynamic_pointer_cast<Ogre2Heightmap>(
+            //     heightmap->OgreObject());
+            _point = point;
+            return true;
+          }
+        }
+      }
       return false;
+    }
     else
     {
       _item = dynamic_cast<Ogre::Item *>(collection[0]);

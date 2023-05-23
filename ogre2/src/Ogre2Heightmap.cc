@@ -17,14 +17,14 @@
 
 #include <chrono>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Util.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Util.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Heightmap.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Light.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Heightmap.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Light.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
 
 #include "Terra/Terra.h"
 
@@ -44,7 +44,7 @@
 #endif
 
 //////////////////////////////////////////////////
-class ignition::rendering::Ogre2HeightmapPrivate
+class gz::rendering::Ogre2HeightmapPrivate
 {
   /// \brief Skirt min height. Leave it at -1 for automatic.
   /// Leave it at 0 for maximum skirt size (high performance hit)
@@ -64,7 +64,7 @@ class ignition::rendering::Ogre2HeightmapPrivate
   public: std::unique_ptr<Ogre::Terra> terra{nullptr};
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -76,13 +76,6 @@ Ogre2Heightmap::Ogre2Heightmap(const HeightmapDescriptor &_desc)
 //////////////////////////////////////////////////
 Ogre2Heightmap::~Ogre2Heightmap()
 {
-  this->DestroyImpl();
-}
-
-//////////////////////////////////////////////////
-void Ogre2Heightmap::DestroyImpl()
-{
-  this->dataPtr->terra.reset();
 }
 
 //////////////////////////////////////////////////
@@ -92,7 +85,7 @@ void Ogre2Heightmap::Init()
 
   if (this->descriptor.Data() == nullptr)
   {
-    ignerr << "Failed to initialize: null heightmap data." << std::endl;
+    gzerr << "Failed to initialize: null heightmap data." << std::endl;
     return;
   }
 
@@ -109,7 +102,7 @@ void Ogre2Heightmap::Init()
 
   // \todo These parameters shouldn't be hardcoded, and instead parametrized so
   // that they can be made consistent across different libraries (like
-  // ign-physics)
+  // gz-physics)
   bool flipY = false;
   // sampling size along image width and height
   const bool needsOgre1Compat =
@@ -122,7 +115,7 @@ void Ogre2Heightmap::Init()
 
   if (needsOgre1Compat)
   {
-    ignwarn << "Heightmap final sampling should be 2^n"
+    gzwarn << "Heightmap final sampling should be 2^n"
            << std::endl << " which differs from ogre1's 2^n+1"
            << std::endl << "The last row and column will be cropped"
            << std::endl << "size = (width * sampling) - sampling + 1"
@@ -134,7 +127,7 @@ void Ogre2Heightmap::Init()
   }
   else if (!math::isPowerOfTwo(srcWidth))
   {
-    ignerr << "Heightmap final sampling must satisfy 2^n."
+    gzerr << "Heightmap final sampling must satisfy 2^n."
            << std::endl << "size = width * sampling"
            << std::endl << "[" << srcWidth << "] = ["
            << this->descriptor.Data()->Width() << "] * ["
@@ -165,8 +158,8 @@ void Ogre2Heightmap::Init()
   // Obtain min and max elevation and bring everything to range [0; 1]
   // Terra should support non-normalized ranges but there are a couple
   // bugs preventing that, so it's just easier to normalize the data
-  float minElevation = 0.0;
-  float maxElevation = 0.0;
+  double minElevation = this->descriptor.Data()->MinElevation();
+  double maxElevation = this->descriptor.Data()->MaxElevation();
 
   for (unsigned int y = 0; y < newWidth; ++y)
   {
@@ -175,13 +168,17 @@ void Ogre2Heightmap::Init()
       const size_t index = y * srcWidth + x;
       float heightVal = lookup[index];
 
-      // Sanity check in case we get NaNs from ign-common, this prevents a crash
+      // Sanity check in case we get NaNs from gz-common, this prevents a crash
       // in Ogre
       if (!std::isfinite(heightVal))
         heightVal = minElevation;
 
-      minElevation = std::min(minElevation, heightVal);
-      maxElevation = std::max(maxElevation, heightVal);
+      if (heightVal < minElevation || heightVal > maxElevation)
+      {
+        gzerr << "Internal error: height [" << heightVal
+               << "] is out of bounds [" << minElevation << " / "
+               << maxElevation << "]" << std::endl;
+      }
       this->dataPtr->heights.push_back(heightVal);
     }
   }
@@ -200,7 +197,7 @@ void Ogre2Heightmap::Init()
 
   if (this->dataPtr->heights.empty())
   {
-    ignerr << "Failed to load terrain. Heightmap data is empty" << std::endl;
+    gzerr << "Failed to load terrain. Heightmap data is empty" << std::endl;
     return;
   }
 
@@ -218,14 +215,13 @@ void Ogre2Heightmap::Init()
                          1u, Ogre::TextureTypes::Type2D,
                          Ogre::PFG_R32_FLOAT, false);
 
-  const math::Vector3d newSize = this->descriptor.Size() *
-                                 math::Vector3d(1.0, 1.0, heightDiff);
+  const math::Vector3d size = this->descriptor.Size();
 
   // The position's Y sign ends up flipped
   math::Vector3d center(
       this->descriptor.Position().X(),
       -this->descriptor.Position().Y(),
-      this->descriptor.Position().Z() + newSize.Z() * 0.5 + minElevation);
+      this->descriptor.Position().Z() + size.Z() * 0.5 + minElevation);
 
   Ogre::Root *ogreRoot = Ogre2RenderEngine::Instance()->OgreRoot();
   Ogre::SceneManager *ogreSceneManager = ogreScene->OgreSceneManager();
@@ -238,13 +234,16 @@ void Ogre2Heightmap::Init()
         &ogreSceneManager->_getEntityMemoryManager(
           Ogre::/*SCENE_STATIC*/SCENE_DYNAMIC),
         ogreSceneManager, 11u, ogreCompMgr, nullptr, true );
+
   // Does not cast shadows because it uses a raymarching implementation
   // instead of shadow maps. It does receive shadows from shadow maps though
   this->dataPtr->terra->setCastShadows(false);
   this->dataPtr->terra->load(
         image,
         Ogre2Conversions::Convert(center),
-        Ogre2Conversions::Convert(newSize),
+        Ogre2Conversions::Convert(size),
+        false,
+        false,
         this->descriptor.Name());
   this->dataPtr->autoSkirtValue =
       this->dataPtr->terra->getCustomSkirtMinHeight();
@@ -255,17 +254,17 @@ void Ogre2Heightmap::Init()
   Ogre::Hlms *hlmsTerra =
           ogreRoot->getHlmsManager()->getHlms(Ogre::HLMS_USER3);
 
-  IGN_ASSERT(dynamic_cast<Ogre::HlmsTerra*>(hlmsTerra),
+  GZ_ASSERT(dynamic_cast<Ogre::HlmsTerra*>(hlmsTerra),
              "HlmsTerra incorrectly setup, memory corrupted, or "
              "HlmsTerra::getType changed while this code is out of sync");
 
-  Ogre::String datablockName = "IGN Terra " + this->name;
+  Ogre::String datablockName = "GZ Terra " + this->name;
 
   Ogre::HlmsDatablock *datablockBase = hlmsTerra->createDatablock(
               datablockName, datablockName, Ogre::HlmsMacroblock(),
               Ogre::HlmsBlendblock(), Ogre::HlmsParamVec(), false);
 
-  IGN_ASSERT(dynamic_cast<Ogre::HlmsTerraDatablock *>(datablockBase) != nullptr,
+  GZ_ASSERT(dynamic_cast<Ogre::HlmsTerraDatablock *>(datablockBase) != nullptr,
              "Corruption detected. This is impossible.");
 
   Ogre::HlmsTerraDatablock *datablock =
@@ -285,8 +284,8 @@ void Ogre2Heightmap::Init()
     using namespace Ogre;
     const HeightmapTexture *texture0 = this->descriptor.TextureByIndex(0);
     if (texture0->Normal().empty() &&
-        abs(newSize.X() - texture0->Size()) < 1e-6 &&
-        abs(newSize.Y() - texture0->Size()) < 1e-6 )
+        abs(size.X() - texture0->Size()) < 1e-6 &&
+        abs(size.Y() - texture0->Size()) < 1e-6 )
     {
       bCanUseFirstAsBase = true;
     }
@@ -294,7 +293,7 @@ void Ogre2Heightmap::Init()
     if ((numTextures > 4u && !bCanUseFirstAsBase) ||
         (numTextures > 5u && bCanUseFirstAsBase))
     {
-      ignwarn << "Ogre2Heightmap currently supports up to 4 textures, "
+      gzwarn << "Ogre2Heightmap currently supports up to 4 textures, "
                  "5 textures if the first one is diffuse-only & "
                  "texture size = terrain size. "
                  "The rest are ignored. Supplied: "
@@ -316,9 +315,9 @@ void Ogre2Heightmap::Init()
                             texture0->Normal(), &samplerblock);
 
       const float sizeX =
-              static_cast<float>(newSize.X() / texture0->Size());
+              static_cast<float>(size.X() / texture0->Size());
       const float sizeY =
-              static_cast<float>(newSize.Y() / texture0->Size());
+              static_cast<float>(size.Y() / texture0->Size());
       if (!texture0->Diffuse().empty() || !texture0->Normal().empty())
         datablock->setDetailMapOffsetScale(0, Vector4(0, 0, sizeX, sizeY));
     }
@@ -337,9 +336,9 @@ void Ogre2Heightmap::Init()
                             texture->Normal(), &samplerblock);
 
       const float sizeX =
-              static_cast<float>(newSize.X() / texture->Size());
+              static_cast<float>(size.X() / texture->Size());
       const float sizeY =
-              static_cast<float>(newSize.Y() / texture->Size());
+              static_cast<float>(size.Y() / texture->Size());
       if (!texture->Diffuse().empty() || !texture->Normal().empty())
       {
           datablock->setDetailMapOffsetScale(
@@ -353,7 +352,7 @@ void Ogre2Heightmap::Init()
     if ((numBlends > 3u && !bCanUseFirstAsBase) ||
         (numBlends > 4u && bCanUseFirstAsBase))
     {
-      ignwarn << "Ogre2Heightmap currently supports up to 3 blends, "
+      gzwarn << "Ogre2Heightmap currently supports up to 3 blends, "
                  "4 blends if the first one is diffuse-only & "
                  "texture size = terrain size. "
                  "The rest are ignored. Supplied: "
@@ -373,15 +372,15 @@ void Ogre2Heightmap::Init()
               static_cast<Ogre::Real>(blend->MinHeight()+
                                       blend->FadeDistance());
     }
-    datablock->setIgnWeightsHeights(minBlendHeights, maxBlendHeights);
+    datablock->setGzWeightsHeights(minBlendHeights, maxBlendHeights);
   }
 
   this->dataPtr->terra->setDatablock(datablock);
 
-  ignmsg << "Loading heightmap: " << this->descriptor.Name() << std::endl;
+  gzmsg << "Loading heightmap: " << this->descriptor.Name() << std::endl;
   auto time = std::chrono::steady_clock::now();
 
-  ignmsg << "Heightmap loaded. Process took "
+  gzmsg << "Heightmap loaded. Process took "
         <<  std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - time).count()
         << " ms." << std::endl;

@@ -27,14 +27,14 @@
 #include <iostream>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/rendering.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/rendering.hh>
 
 #include "example_config.hh"
 #include "GlutWindow.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 const std::string RESOURCE_PATH =
@@ -45,7 +45,7 @@ void buildScene(ScenePtr _scene)
 {
   // initialize _scene
   _scene->SetAmbientLight(0.3, 0.3, 0.3);
-  _scene->SetBackgroundColor(0.3, 0.3, 0.3);
+  _scene->SetBackgroundColor(0.0, 0.0, 0.3);
   VisualPtr root = _scene->RootVisual();
 
   // create directional light
@@ -68,6 +68,16 @@ void buildScene(ScenePtr _scene)
   root->AddChild(mesh);
 //! [create a mesh]
 
+  // create a pbr glb mesh
+  mesh = _scene->CreateVisual();
+  mesh->SetLocalPosition(3, 2, 0);
+  mesh->SetLocalRotation(0, 0, 0);
+  descriptor.meshName = common::joinPaths(RESOURCE_PATH, "AmbulanceStretcher.glb");
+  descriptor.mesh = meshManager->Load(descriptor.meshName);
+  meshGeom = _scene->CreateMesh(descriptor);
+  mesh->AddGeometry(meshGeom);
+  root->AddChild(mesh);
+
   // create gray material
   MaterialPtr gray = _scene->CreateMaterial();
   gray->SetAmbient(0.7, 0.7, 0.7);
@@ -88,13 +98,13 @@ void buildScene(ScenePtr _scene)
 
 //! [create camera]
   CameraPtr camera = _scene->CreateCamera("camera");
-  camera->SetLocalPosition(0.0, 0.0, 0.5);
+  camera->SetLocalPosition(0.0, 1.0, 0.5);
   camera->SetLocalRotation(0.0, 0.0, 0.0);
   camera->SetImageWidth(800);
   camera->SetImageHeight(600);
   camera->SetAntiAliasing(2);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   root->AddChild(camera);
 //! [create camera]
 }
@@ -107,7 +117,7 @@ CameraPtr createCamera(const std::string &_engineName,
   RenderEngine *engine = rendering::engine(_engineName, _params);
   if (!engine)
   {
-    ignwarn << "Engine '" << _engineName
+    gzwarn << "Engine '" << _engineName
               << "' is not supported" << std::endl;
     return CameraPtr();
   }

@@ -15,17 +15,13 @@
  *
  */
 
-#include "ignition/rendering/DistortionPass.hh"
+#include "gz/rendering/DistortionPass.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-DistortionPass::DistortionPass()
-{
-}
+DistortionPass::DistortionPass() = default;
 
 //////////////////////////////////////////////////
-DistortionPass::~DistortionPass()
-{
-}
+DistortionPass::~DistortionPass() = default;

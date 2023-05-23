@@ -18,22 +18,22 @@
 
 #include <sstream>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Material.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/common/Skeleton.hh>
-#include <ignition/common/SkeletonAnimation.hh>
-#include <ignition/common/SubMesh.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Material.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/common/Skeleton.hh>
+#include <gz/common/SkeletonAnimation.hh>
+#include <gz/common/SubMesh.hh>
 
-#include <ignition/math/Matrix4.hh>
+#include <gz/math/Matrix4.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Mesh.hh"
-#include "ignition/rendering/ogre2/Ogre2MeshFactory.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Storage.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Mesh.hh"
+#include "gz/rendering/ogre2/Ogre2MeshFactory.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Storage.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -56,7 +56,7 @@
 #endif
 
 /// \brief Private data for the Ogre2MeshFactory class
-class ignition::rendering::Ogre2MeshFactoryPrivate
+class gz::rendering::Ogre2MeshFactoryPrivate
 {
   /// \brief Vector with the template materials, we keep the pointer to be
   /// able to remove it when nobody is using it.
@@ -64,11 +64,11 @@ class ignition::rendering::Ogre2MeshFactoryPrivate
 };
 
 /// \brief Private data for the Ogre2SubMeshStoreFactory class
-class ignition::rendering::Ogre2SubMeshStoreFactoryPrivate
+class gz::rendering::Ogre2SubMeshStoreFactoryPrivate
 {
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -122,7 +122,7 @@ Ogre2MeshPtr Ogre2MeshFactory::Create(const MeshDescriptor &_desc)
   // check if invalid mesh
   if (!mesh->ogreItem)
   {
-    ignerr << "Failed to get Ogre item for [" << _desc.meshName << "]"
+    gzerr << "Failed to get Ogre item for [" << _desc.meshName << "]"
            << std::endl;
     return nullptr;
   }
@@ -351,11 +351,12 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
       }
       else
       {
-        ignerr << "Unknown primitive type["
+        gzerr << "Unknown primitive type["
               << subMesh.SubMeshPrimitiveType() << "]\n";
       }
 
-      ogreSubMesh->vertexData[Ogre::VpNormal] = new Ogre::v1::VertexData();
+      ogreSubMesh->vertexData[Ogre::VpNormal] =
+        new Ogre::v1::VertexData(ogreMesh->getHardwareBufferManager());
       vertexData = ogreSubMesh->vertexData[Ogre::VpNormal];
       vertexDecl = vertexData->vertexDeclaration;
 
@@ -469,7 +470,10 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
       iBuf->unlock();
 
       common::MaterialPtr material;
-      material = _desc.mesh->MaterialByIndex(subMesh.MaterialIndex());
+      if (const auto subMeshIdx = subMesh.GetMaterialIndex())
+      {
+        material = _desc.mesh->MaterialByIndex(subMeshIdx.value());
+      }
 
       MaterialPtr mat = this->scene->CreateMaterial();
       if (material)
@@ -489,7 +493,8 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
     math::Vector3d max = _desc.mesh->Max();
     math::Vector3d min = _desc.mesh->Min();
 
-    if (_desc.mesh->HasSkeleton())
+    if (_desc.mesh->HasSkeleton() &&
+        _desc.mesh->MeshSkeleton()->AnimationCount() != 0)
     {
       min = math::Vector3d(-1, -1, -1);
       max = math::Vector3d(1, 1, 1);
@@ -497,13 +502,13 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
 
     if (!max.IsFinite())
     {
-      ignerr << "Max bounding box is not finite[" << max << "]" << std::endl;
+      gzerr << "Max bounding box is not finite[" << max << "]" << std::endl;
       return false;
     }
 
     if (!min.IsFinite())
     {
-      ignerr << "Min bounding box is not finite[" << min << "]" << std::endl;
+      gzerr << "Min bounding box is not finite[" << min << "]" << std::endl;
       return false;
     }
 
@@ -521,7 +526,7 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
   }
   catch(Ogre::Exception &e)
   {
-    ignerr << "Unable to insert mesh[" << e.getDescription() << "]"
+    gzerr << "Unable to insert mesh[" << e.getDescription() << "]"
         << std::endl;
     return false;
   }
@@ -532,7 +537,7 @@ bool Ogre2MeshFactory::LoadImpl(const MeshDescriptor &_desc)
     if (!_desc.subMeshName.empty())
       msg += ", submesh: '" + _desc.subMeshName + "'";
     msg += ". Mesh will be empty.";
-    ignwarn << msg << std::endl;
+    gzwarn << msg << std::endl;
   }
 
   return true;
@@ -553,19 +558,19 @@ bool Ogre2MeshFactory::Validate(const MeshDescriptor &_desc)
 {
   if (!_desc.mesh && _desc.meshName.empty())
   {
-    ignerr << "Invalid mesh-descriptor, no mesh specified" << std::endl;
+    gzerr << "Invalid mesh-descriptor, no mesh specified" << std::endl;
     return false;
   }
 
   if (!_desc.mesh)
   {
-    ignerr << "Cannot load null mesh [" << _desc.meshName << "]" << std::endl;
+    gzerr << "Cannot load null mesh [" << _desc.meshName << "]" << std::endl;
     return false;
   }
 
   if (_desc.mesh->SubMeshCount() == 0)
   {
-    ignerr << "Cannot load mesh with zero sub-meshes" << std::endl;
+    gzerr << "Cannot load mesh with zero sub-meshes" << std::endl;
     return false;
   }
 

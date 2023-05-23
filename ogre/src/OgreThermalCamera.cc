@@ -25,17 +25,17 @@
 
 #include <limits>
 
-#include <ignition/math/Helpers.hh>
-#include "ignition/rendering/ShaderParams.hh"
-#include "ignition/rendering/ogre/OgreThermalCamera.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreVisual.hh"
+#include <gz/math/Helpers.hh>
+#include "gz/rendering/ShaderParams.hh"
+#include "gz/rendering/ogre/OgreThermalCamera.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreVisual.hh"
 
-namespace ignition
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 //
 /// \brief Helper class for switching the ogre item's material to heat source
 /// material when a thermal camera is being rendered.
@@ -90,7 +90,7 @@ class OgreThermalCameraMaterialSwitcher : public Ogre::RenderTargetListener,
 
 /// \internal
 /// \brief Private data for the OgreThermalCamera class
-class ignition::rendering::OgreThermalCameraPrivate
+class gz::rendering::OgreThermalCameraPrivate
 {
   /// \brief The thermal material
   public: Ogre::MaterialPtr thermalMaterial;
@@ -103,9 +103,6 @@ class ignition::rendering::OgreThermalCameraPrivate
 
   /// \brief Dummy texture
   public: OgreRenderTexturePtr thermalTexture;
-
-  /// \brief Point cloud texture
-  public: OgreRenderTexturePtr colorTexture;
 
   /// \brief Lens distortion compositor
   public: Ogre::CompositorInstance *thermalInstance = nullptr;
@@ -123,7 +120,7 @@ class ignition::rendering::OgreThermalCameraPrivate
   public: uint16_t dataMinVal = 0u;
 
   /// \brief Event used to signal thermal image data
-  public: ignition::common::EventT<void(const uint16_t *,
+  public: gz::common::EventT<void(const uint16_t *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newThermalFrame;
 
@@ -132,7 +129,7 @@ class ignition::rendering::OgreThermalCameraPrivate
       thermalMaterialSwitcher;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 
@@ -208,7 +205,7 @@ Ogre::Technique *OgreThermalCameraMaterialSwitcher::handleSchemeNotFound(
     }
     catch(Ogre::Exception &e)
     {
-      ignerr << "Ogre Error:" << e.getFullDescription() << "\n";
+      gzerr << "Ogre Error:" << e.getFullDescription() << "\n";
     }
     ogreVisual = std::dynamic_pointer_cast<OgreVisual>(result);
   }
@@ -240,7 +237,7 @@ Ogre::Technique *OgreThermalCameraMaterialSwitcher::handleSchemeNotFound(
         }
         catch(std::bad_variant_access &e)
         {
-          ignerr << "Error casting user data: " << e.what() << "\n";
+          gzerr << "Error casting user data: " << e.what() << "\n";
           temp = -1.0;
         }
       }
@@ -297,6 +294,16 @@ void OgreThermalCamera::Destroy()
   if (!this->ogreCamera || !this->scene->IsInitialized())
     return;
 
+  if (this->dataPtr->thermalInstance)
+  {
+    // Do not leave a reference to this->dataPtr->thermalMaterial
+    Ogre::MaterialPtr nullMaterial;
+    this->dataPtr->thermalInstance->getTechnique()
+      ->getOutputTargetPass()
+      ->getPass(0)
+      ->setMaterial(nullMaterial);
+  }
+
   // remove thermal textures
   if (this->dataPtr->ogreThermalTexture)
   {
@@ -312,11 +319,22 @@ void OgreThermalCamera::Destroy()
     this->dataPtr->ogreHeatSourceTexture = nullptr;
   }
 
+  if (!this->dataPtr->thermalMaterial.isNull())
+  {
+    Ogre::MaterialManager::getSingleton().remove(
+      this->dataPtr->thermalMaterial->getHandle());
+    this->dataPtr->thermalMaterial.setNull();
+  }
+
+  this->dataPtr->thermalMaterialSwitcher.reset();
+
+  this->DestroyRenderTexture();
+
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -345,7 +363,7 @@ void OgreThermalCamera::CreateCamera()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
     return;
   }
 
@@ -353,7 +371,7 @@ void OgreThermalCamera::CreateCamera()
       this->name);
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
@@ -365,7 +383,6 @@ void OgreThermalCamera::CreateCamera()
   this->ogreCamera->setFixedYawAxis(false);
 
   // TODO(anyone): provide api access
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setRenderingDistance(0);
   this->ogreCamera->setPolygonMode(Ogre::PM_SOLID);
   this->ogreCamera->setProjectionType(Ogre::PT_PERSPECTIVE);
@@ -377,7 +394,7 @@ void OgreThermalCamera::CreateThermalTexture()
 {
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
@@ -398,12 +415,11 @@ void OgreThermalCamera::CreateThermalTexture()
     vp->setOverlaysEnabled(false);
   }
 
-  double ratio = static_cast<double>(this->ImageWidth()) /
-                 static_cast<double>(this->ImageHeight());
-
-  double vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) / ratio);
-  this->ogreCamera->setAspectRatio(ratio);
-  this->ogreCamera->setFOVy(Ogre::Radian(vfov));
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov = 2.0 * atan(tan(angle / 2.0) / aspectRatio);
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
 
   // near and far plane are passed to heat source frag shaders through
   // material switcher. They are used to normalize depth values which are then
@@ -482,11 +498,23 @@ void OgreThermalCamera::CreateThermalTexture()
 /////////////////////////////////////////////////
 void OgreThermalCamera::CreateRenderTexture()
 {
+  this->DestroyRenderTexture();
   RenderTexturePtr base = this->scene->CreateRenderTexture();
   this->dataPtr->thermalTexture =
       std::dynamic_pointer_cast<OgreRenderTexture>(base);
   this->dataPtr->thermalTexture->SetWidth(1);
   this->dataPtr->thermalTexture->SetHeight(1);
+}
+
+//////////////////////////////////////////////////
+void OgreThermalCamera::DestroyRenderTexture()
+{
+  if (this->dataPtr->thermalTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->dataPtr->thermalTexture.get())
+      ->Destroy();
+    this->dataPtr->thermalTexture.reset();
+  }
 }
 
 //////////////////////////////////////////////////
@@ -545,14 +573,14 @@ void OgreThermalCamera::PostRender()
       this->dataPtr->thermalBuffer, width, height, 1, "L16");
 
   // Uncomment to debug thermal output
-  // igndbg << "wxh: " << width << " x " << height << std::endl;
+  // gzdbg << "wxh: " << width << " x " << height << std::endl;
   // for (unsigned int i = 0; i < height; ++i)
   // {
   //   for (unsigned int j = 0; j < width; ++j)
   //   {
-  //     igndbg << "[" << this->dataPtr->thermalImage[i*width + j] << "]";
+  //     gzdbg << "[" << this->dataPtr->thermalImage[i*width + j] << "]";
   //   }
-  //   igndbg << std::endl;
+  //   gzdbg << std::endl;
   // }
 }
 
@@ -568,4 +596,10 @@ common::ConnectionPtr OgreThermalCamera::ConnectNewThermalFrame(
 RenderTargetPtr OgreThermalCamera::RenderTarget() const
 {
   return this->dataPtr->thermalTexture;
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *OgreThermalCamera::Camera() const
+{
+  return this->ogreCamera;
 }

@@ -26,31 +26,31 @@
 #pragma warning(pop)
 #endif
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include <ignition/math/Color.hh>
-#include <ignition/math/Vector4.hh>
-#include <ignition/math/eigen3/Util.hh>
-#include <ignition/math/OrientedBox.hh>
+#include <gz/math/Color.hh>
+#include <gz/math/Vector4.hh>
+#include <gz/math/eigen3/Util.hh>
+#include <gz/math/OrientedBox.hh>
 
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/Utils.hh"
-#include "ignition/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/Utils.hh"
+#include "gz/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
 
 #include "Ogre2BoundingBoxMaterialSwitcher.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-class ignition::rendering::Ogre2BoundingBoxCameraPrivate
+class gz::rendering::Ogre2BoundingBoxCameraPrivate
 {
   /// \brief Merge a vector of 2D boxes. Used in multi-links model.
   /// \param[in] _boxes Vector of 2D boxes
@@ -283,7 +283,7 @@ Ogre2BoundingBoxCameraPrivate::ClipToViewPort(const math::Vector4d &_bounds,
       }
       else
       {
-        ignerr << "Internal error: no point was found outside of the clip "
+        gzerr << "Internal error: no point was found outside of the clip "
                << "window\n";
         break;
       }
@@ -375,26 +375,25 @@ void Ogre2BoundingBoxCamera::CreateCamera()
   auto ogreScene = this->scene->OgreSceneManager();
   if (ogreScene == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
     return;
   }
 
   this->dataPtr->ogreCamera = ogreScene->createCamera(this->Name());
   if (this->dataPtr->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
   this->dataPtr->ogreCamera->detachFromParent();
   this->ogreNode->attachObject(this->dataPtr->ogreCamera);
 
-  // rotate to ignition gazebo coord.
+  // rotate to Gazebo coord.
   this->dataPtr->ogreCamera->yaw(Ogre::Degree(-90));
   this->dataPtr->ogreCamera->roll(Ogre::Degree(-90));
   this->dataPtr->ogreCamera->setFixedYawAxis(false);
 
-  this->dataPtr->ogreCamera->setAutoAspectRatio(true);
   this->dataPtr->ogreCamera->setRenderingDistance(100);
   this->dataPtr->ogreCamera->setProjectionType(
       Ogre::ProjectionType::PT_PERSPECTIVE);
@@ -442,7 +441,7 @@ void Ogre2BoundingBoxCamera::Destroy()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -472,10 +471,11 @@ void Ogre2BoundingBoxCamera::CreateBoundingBoxTexture()
   // Camera Parameters
   this->dataPtr->ogreCamera->setNearClipDistance(this->NearClipPlane());
   this->dataPtr->ogreCamera->setFarClipDistance(this->FarClipPlane());
-  this->dataPtr->ogreCamera->setAspectRatio(this->AspectRatio());
-  double vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) /
-    this->AspectRatio());
-  this->dataPtr->ogreCamera->setFOVy(Ogre::Radian(vfov));
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov = 2.0 * atan(tan(angle / 2.0) / aspectRatio);
+  this->dataPtr->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->dataPtr->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
 
   // render texture
   auto engine = Ogre2RenderEngine::Instance();
@@ -490,7 +490,7 @@ void Ogre2BoundingBoxCamera::CreateBoundingBoxTexture()
 
   if (!this->dataPtr->ogreRenderTexture)
   {
-    ignerr << "Null render texture" << std::endl;
+    gzerr << "Null render texture" << std::endl;
     return;
   }
 
@@ -510,7 +510,7 @@ void Ogre2BoundingBoxCamera::CreateBoundingBoxTexture()
   auto ogreCompositorManager = ogreRoot->getCompositorManager2();
   if (ogreCompositorManager == nullptr)
   {
-    ignerr << "Null Ogre compositor manager." << std::endl;
+    gzerr << "Null Ogre compositor manager." << std::endl;
     return;
   }
 
@@ -544,12 +544,12 @@ void Ogre2BoundingBoxCamera::Render()
 {
   if (!this->scene)
   {
-    ignerr << "Null scene." << std::endl;
+    gzerr << "Null scene." << std::endl;
     return;
   }
   if (!this->dataPtr->ogreCompositorWorkspace)
   {
-    ignerr << "Null Ogre compositor workspace." << std::endl;
+    gzerr << "Null Ogre compositor workspace." << std::endl;
     return;
   }
 
@@ -577,7 +577,7 @@ void Ogre2BoundingBoxCamera::PostRender()
 
   if (!this->dataPtr->ogreRenderTexture)
   {
-    ignerr << "Null render texture" << std::endl;
+    gzerr << "Null render texture" << std::endl;
     return;
   }
 
@@ -641,7 +641,7 @@ void Ogre2BoundingBoxCamera::MarkVisibleBoxes()
 {
   if (!this->dataPtr->buffer)
   {
-    ignerr << "Null buffer" << std::endl;
+    gzerr << "Null buffer" << std::endl;
     return;
   }
 
@@ -730,7 +730,7 @@ void Ogre2BoundingBoxCameraPrivate::MeshVertices(
             vec.z = *vertex++;
           }
           else
-            ignerr << "Vertex Buffer type error" << std::endl;
+            gzerr << "Vertex Buffer type error" << std::endl;
 
           // Convert to world coordinates
           vec = (oreintation * (vec * scale)) + position;
@@ -921,7 +921,7 @@ void Ogre2BoundingBoxCamera::BoundingBoxes3D()
     // Position in camera coord
     Ogre::Vector3 viewPosition = viewMatrix * position;
 
-    // Convert to ignition::math
+    // Convert to gz::math
     box->SetCenter(Ogre2Conversions::Convert(viewPosition));
     box->SetSize(Ogre2Conversions::Convert(size));
 
@@ -956,7 +956,7 @@ void Ogre2BoundingBoxCamera::VisibleBoundingBoxes()
 {
   if (!this->dataPtr->buffer)
   {
-    ignerr << "Null buffer" << std::endl;
+    gzerr << "Null buffer" << std::endl;
     return;
   }
 
@@ -1191,7 +1191,7 @@ void Ogre2BoundingBoxCamera::MeshMinimalBox(
           vec.z = *vertex++;
         }
         else
-          ignerr << "Vertex Buffer type error" << std::endl;
+          gzerr << "Vertex Buffer type error" << std::endl;
 
         vec = (_orientation * (vec * _scale)) + _position;
 

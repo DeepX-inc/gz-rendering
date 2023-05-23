@@ -17,13 +17,13 @@
 
 #include <cmath>
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/OrbitViewController.hh"
-#include "ignition/rendering/Scene.hh"
-#include "ignition/rendering/Visual.hh"
+#include "gz/rendering/OrbitViewController.hh"
+#include "gz/rendering/Scene.hh"
+#include "gz/rendering/Visual.hh"
 
-class ignition::rendering::OrbitViewControllerPrivate
+class gz::rendering::OrbitViewControllerPrivate
 {
   /// \brief Pointer to camera
   public: CameraPtr camera;
@@ -40,11 +40,11 @@ class ignition::rendering::OrbitViewControllerPrivate
   public: double NormalizePitch(double _pitch);
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-static const float PITCH_LIMIT_LOW = -static_cast<float>(IGN_PI)*0.5f + 0.001f;
-static const float PITCH_LIMIT_HIGH = static_cast<float>(IGN_PI)*0.5f - 0.001f;
+static const float PITCH_LIMIT_LOW = -static_cast<float>(GZ_PI)*0.5f + 0.001f;
+static const float PITCH_LIMIT_HIGH = static_cast<float>(GZ_PI)*0.5f - 0.001f;
 
 //////////////////////////////////////////////////
 OrbitViewController::OrbitViewController()
@@ -60,9 +60,7 @@ OrbitViewController::OrbitViewController(const CameraPtr &_camera)
 }
 
 //////////////////////////////////////////////////
-OrbitViewController::~OrbitViewController()
-{
-}
+OrbitViewController::~OrbitViewController() = default;
 
 //////////////////////////////////////////////////
 void OrbitViewController::SetCamera(const CameraPtr &_camera)
@@ -96,14 +94,14 @@ void OrbitViewController::Zoom(const double _value)
 {
   if (!std::isfinite(_value))
   {
-    ignerr << "Failed to zoom by non-finite value [" << _value << "]"
-           << std::endl;
+    gzerr << "Failed to zoom by non-finite value [" << _value << "]"
+          << std::endl;
     return;
   }
 
   if (!this->dataPtr->camera)
   {
-    ignerr << "Camera is NULL" << std::endl;
+    gzerr << "Camera is NULL" << std::endl;
     return;
   }
 
@@ -124,21 +122,21 @@ void OrbitViewController::Pan(const math::Vector2d &_value)
 {
   if (!_value.IsFinite())
   {
-    ignerr << "Failed to pan by non-finite value [" << _value << "]"
-           << std::endl;
+    gzerr << "Failed to pan by non-finite value [" << _value << "]"
+          << std::endl;
     return;
   }
 
   if (!this->dataPtr->camera)
   {
-    ignerr << "Camera is NULL" << std::endl;
+    gzerr << "Camera is NULL" << std::endl;
     return;
   }
 
   if (!this->dataPtr->camera->WorldPosition().IsFinite())
   {
-    ignerr << "Camera world position isn't finite ["
-           << this->dataPtr->camera->WorldPosition() << "]" << std::endl;
+    gzerr << "Camera world position isn't finite ["
+          << this->dataPtr->camera->WorldPosition() << "]" << std::endl;
     return;
   }
 
@@ -151,7 +149,7 @@ void OrbitViewController::Pan(const math::Vector2d &_value)
   double vfov = 2.0f * atan(tan(hfov / 2.0f) /
         this->dataPtr->camera->AspectRatio());
 
-  ignition::math::Vector3d translation;
+  math::Vector3d translation;
 
   double factor = 2.0;
 
@@ -173,19 +171,19 @@ void OrbitViewController::Orbit(const math::Vector2d &_value)
 {
   if (!_value.IsFinite())
   {
-    ignerr << "Failed to orbit by non-finite value [" << _value << "]"
-           << std::endl;
+    gzerr << "Failed to orbit by non-finite value [" << _value << "]"
+          << std::endl;
     return;
   }
 
   if (!this->dataPtr->camera)
   {
-    ignerr << "Camera is NULL" << std::endl;
+    gzerr << "Camera is NULL" << std::endl;
     return;
   }
 
-  double dy = 2 * IGN_PI * _value.X() / this->dataPtr->camera->ImageWidth();
-  double dp = 2 * IGN_PI * _value.Y() / this->dataPtr->camera->ImageHeight();
+  double dy = 2 * GZ_PI * _value.X() / this->dataPtr->camera->ImageWidth();
+  double dp = 2 * GZ_PI * _value.Y() / this->dataPtr->camera->ImageHeight();
 
   // translate to make target the origin for rotation
   this->dataPtr->camera->SetWorldPosition(
@@ -193,14 +191,14 @@ void OrbitViewController::Orbit(const math::Vector2d &_value)
 
   // rotate around world axis at target point
   math::Quaterniond yawQuat;
-  yawQuat.Axis(math::Vector3d::UnitZ, -dy);
+  yawQuat.SetFromAxisAngle(math::Vector3d::UnitZ, -dy);
   this->dataPtr->camera->SetWorldRotation(
       yawQuat * this->dataPtr->camera->WorldRotation());
   this->dataPtr->camera->SetWorldPosition(
       yawQuat * this->dataPtr->camera->WorldPosition());
 
   math::Quaterniond localPitchQuat;
-  localPitchQuat.Axis(
+  localPitchQuat.SetFromAxisAngle(
       this->dataPtr->camera->WorldRotation()*math::Vector3d::UnitY, dp);
   this->dataPtr->camera->SetWorldRotation(
       localPitchQuat * this->dataPtr->camera->WorldRotation());
@@ -215,10 +213,10 @@ void OrbitViewController::Orbit(const math::Vector2d &_value)
 //////////////////////////////////////////////////
 double OrbitViewControllerPrivate::NormalizeYaw(double _yaw)
 {
-  _yaw = fmod(_yaw, IGN_PI*2);
+  _yaw = fmod(_yaw, GZ_PI*2);
   if (_yaw < 0.0f)
   {
-    _yaw = IGN_PI * 2 + _yaw;
+    _yaw = GZ_PI * 2 + _yaw;
   }
 
   return _yaw;

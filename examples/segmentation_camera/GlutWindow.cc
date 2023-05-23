@@ -34,15 +34,15 @@
 #include <string>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/math/Vector2.hh>
+#include <gz/common/Console.hh>
+#include <gz/math/Vector2.hh>
 
-#include <ignition/rendering/Camera.hh>
-#include <ignition/rendering/Image.hh>
-#include <ignition/rendering/OrbitViewController.hh>
-#include <ignition/rendering/RayQuery.hh>
-#include <ignition/rendering/Scene.hh>
-#include <ignition/rendering/SegmentationCamera.hh>
+#include <gz/rendering/Camera.hh>
+#include <gz/rendering/Image.hh>
+#include <gz/rendering/OrbitViewController.hh>
+#include <gz/rendering/RayQuery.hh>
+#include <gz/rendering/Scene.hh>
+#include <gz/rendering/SegmentationCamera.hh>
 
 #include "GlutWindow.hh"
 
@@ -55,7 +55,7 @@ unsigned int imgh = 0;
 
 ir::CameraPtr g_camera;
 ir::ImagePtr g_image;
-ignition::common::ConnectionPtr g_connection;
+gz::common::ConnectionPtr g_connection;
 
 bool g_initContext = false;
 
@@ -136,15 +136,14 @@ void motionCB(int _x, int _y)
 void handleMouse()
 {
   std::lock_guard<std::mutex> lock(g_mouseMutex);
-  // only ogre supports ray query for now so use
-  // ogre camera located at camera index = 0.
+
   ir::CameraPtr rayCamera = g_camera;
   if (!g_rayQuery)
   {
     g_rayQuery = rayCamera->Scene()->CreateRayQuery();
     if (!g_rayQuery)
     {
-      ignerr << "Failed to create Ray Query" << std::endl;
+      gzerr << "Failed to create Ray Query" << std::endl;
       return;
     }
   }
@@ -152,23 +151,44 @@ void handleMouse()
   if (g_mouse.buttonDirty)
   {
     g_mouse.buttonDirty = false;
+
+    // TODO: enable for segmentation cameras
+#if 0
+    // test mouse picking
+    if (g_mouse.button == GLUT_LEFT_BUTTON && g_mouse.state == GLUT_DOWN)
+    {
+      // Get visual using Selection Buffer from Camera
+      ir::VisualPtr visual;
+      gz::math::Vector2i mousePos(g_mouse.x, g_mouse.y);
+      visual = rayCamera->VisualAt(mousePos);
+      if (visual)
+      {
+        std::cout << "Selected visual at position: ";
+        std::cout << g_mouse.x << " " << g_mouse.y << ": ";
+        std::cout << visual->Name() << "\n";
+      }
+      else
+      {
+        std::cout << "No visual found at position: ";
+        std::cout << g_mouse.x << " " << g_mouse.y << std::endl;
+      }
+    }
+#endif
+
+    // camera orbit
     double nx =
         2.0 * g_mouse.x / static_cast<double>(rayCamera->ImageWidth()) - 1.0;
     double ny = 1.0 -
         2.0 * g_mouse.y / static_cast<double>(rayCamera->ImageHeight());
+    g_rayQuery->SetFromCamera(rayCamera, gz::math::Vector2d(nx, ny));
+    g_target  = g_rayQuery->ClosestPoint();
+    if (!g_target)
+    {
+      // set point to be 10m away if no intersection found
+      g_target.point = g_rayQuery->Origin() + g_rayQuery->Direction() * 10;
+      return;
+    }
 
-    // TODO(anyone) figure out why this code is causing a crash
-    // g_rayQuery->SetFromCamera(rayCamera, ignition::math::Vector2d(nx, ny));
-    // g_target  = g_rayQuery->ClosestPoint();
-    // if (!g_target)
-    // {
-    //   // set point to be 10m away if no intersection found
-    //   g_target.point = g_rayQuery->Origin() + g_rayQuery->Direction() * 10;
-    //   return;
-    // }
-
-    // TODO(anyone) get mouse wheel scroll zoom to work (currently isn't
-    // working)
     // mouse wheel scroll zoom
     if ((g_mouse.button == 3 || g_mouse.button == 4) &&
         g_mouse.state == GLUT_UP)
@@ -188,7 +208,7 @@ void handleMouse()
   if (g_mouse.motionDirty)
   {
     g_mouse.motionDirty = false;
-    auto drag = ignition::math::Vector2d(g_mouse.dragX, g_mouse.dragY);
+    auto drag = gz::math::Vector2d(g_mouse.dragX, g_mouse.dragY);
 
     // left mouse button pan
     if (g_mouse.button == GLUT_LEFT_BUTTON && g_mouse.state == GLUT_DOWN)
@@ -203,8 +223,7 @@ void handleMouse()
       g_viewControl.SetTarget(g_target.point);
       g_viewControl.Orbit(drag);
     }
-    // TODO(anyone) get right mouse button zoom to work. Seems to crash when
-    // used with the RayQuery
+
     // right mouse button zoom
     else if (g_mouse.button == GLUT_RIGHT_BUTTON && g_mouse.state == GLUT_DOWN)
     {
@@ -334,7 +353,7 @@ void run(ir::CameraPtr _camera)
 {
   if (!_camera)
   {
-    ignerr << "No camera found. Scene will not be rendered" << std::endl;
+    gzerr << "No camera found. Scene will not be rendered" << std::endl;
     return;
   }
 

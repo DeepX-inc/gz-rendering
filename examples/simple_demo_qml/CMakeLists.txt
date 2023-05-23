@@ -1,21 +1,14 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(ignition-rendering-simple-demo-qml)
+project(gz-rendering-simple-demo-qml)
 
 #------------------------------------------------------------------------
-# Compile as C++14
-
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-#------------------------------------------------------------------------
-# Find ignition-cmake
-find_package(ignition-cmake2 2.3 REQUIRED)
-set(IGN_CMAKE_VER ${ignition-cmake2_VERSION_MAJOR})
+# Find gz-cmake
+find_package(gz-cmake3 REQUIRED)
+set(GZ_CMAKE_VER ${gz-cmake3_VERSION_MAJOR})
 
 #------------------------------------------------------------------------
-# Find ign-rendering
-find_package(ignition-rendering6 REQUIRED)
-find_package(ignition-common4 REQUIRED)
+# Find gz-rendering
+find_package(gz-rendering7)
 
 #======================================
 # Find Qt
@@ -60,23 +53,21 @@ set(CMAKE_AUTOUIC ON)
 
 add_executable(simple_demo_qml
     Main.cc
-    IgnitionRenderer.hh
-    IgnitionRenderer.cc
+    GzRenderer.hh
+    GzRenderer.cc
     ThreadRenderer.h
     ThreadRenderer.cpp
     ${QT_RESOURCES}
 )
 
 target_include_directories(simple_demo_qml PUBLIC
-    ${IGNITION-RENDERING_INCLUDE_DIRS}
-    ${IGNITION-COMMON_INCLUDE_DIRS}
+    ${GZ-RENDERING_INCLUDE_DIRS}
     ${OGRE2_INCLUDE_DIRS}
     ${OpenGL_INCLUDE_DIRS}
 )
 
 target_link_libraries(simple_demo_qml PUBLIC
-    ${IGNITION-COMMON_LIBRARIES}
-    ${IGNITION-RENDERING_LIBRARIES}
+    ${GZ-RENDERING_LIBRARIES}
     ${OGRE2_LIBRARIES}
     ${OPENGL_LIBRARIES}
     Qt5::Core
@@ -88,7 +79,7 @@ target_link_libraries(simple_demo_qml PUBLIC
 set_target_properties(simple_demo_qml
     PROPERTIES
         QT_QML_MODULE_VERSION 1.0
-        QT_QML_MODULE_URI IgnitionRendering
+        QT_QML_MODULE_URI GzRendering
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}

@@ -15,20 +15,19 @@
  *
  */
 
-#include <ignition/common/SingletonT.hh>
+#include <gz/common/SingletonT.hh>
 
-#include <ignition/plugin/Register.hh>
+#include <gz/plugin/Register.hh>
 
-#include "ignition/rendering/RenderEnginePlugin.hh"
-#include "ignition/rendering/base/BaseRenderEngine.hh"
-#include "ignition/rendering/base/BaseRenderTypes.hh"
+#include "gz/rendering/RenderEnginePlugin.hh"
+#include "gz/rendering/base/BaseRenderEngine.hh"
+#include "gz/rendering/base/BaseRenderTypes.hh"
 
 namespace mock
 {
   /// \brief The render engine class which implements a render engine.
   class HelloWorldRenderEngine :
-    public virtual ignition::rendering::BaseRenderEngine,
-    public ignition::common::SingletonT<HelloWorldRenderEngine>
+    public virtual gz::rendering::BaseRenderEngine
   {
     // Documentation Inherited.
     public: virtual bool IsEnabled() const override
@@ -40,6 +39,13 @@ namespace mock
     public: virtual std::string Name() const override
     {
       return "HelloWorldPlugin";
+    }
+
+    /// \brief Get a pointer to the render engine
+    /// \return a pointer to the render engine
+    public: static HelloWorldRenderEngine *Instance()
+    {
+      return gz::common::SingletonT<HelloWorldRenderEngine>::Instance();
     }
 
     // Documentation Inherited.
@@ -59,7 +65,7 @@ namespace mock
     /// \brief Get a pointer to the list of scenes managed by the render
     /// engine.
     /// \return list of scenes
-    protected: virtual ignition::rendering::SceneStorePtr Scenes()
+    protected: virtual gz::rendering::SceneStorePtr Scenes()
                      const override
     {
       return nullptr;
@@ -68,7 +74,7 @@ namespace mock
     /// \brief Create a scene.
     /// \param[in] _id Unique scene Id
     /// \parampin] _name Name of scene
-    protected: virtual ignition::rendering::ScenePtr
+    protected: virtual gz::rendering::ScenePtr
                    CreateSceneImpl(unsigned int _id,
                    const std::string &_name) override
     {
@@ -76,12 +82,12 @@ namespace mock
     }
 
     /// \brief Singelton setup.
-    private: friend class ignition::common::SingletonT<HelloWorldRenderEngine>;
+    private: friend class gz::common::SingletonT<HelloWorldRenderEngine>;
   };
 
   /// \brief Plugin for loading the HelloWorld render engine.
   class HelloWorldPlugin :
-    public ignition::rendering::RenderEnginePlugin
+    public gz::rendering::RenderEnginePlugin
   {
     /// \brief Get the name of the render engine loaded by this plugin.
     /// \return Name of render engine
@@ -92,7 +98,7 @@ namespace mock
 
     /// \brief Get a pointer to the render engine loaded by this plugin.
     /// \return Render engine instance
-    public: ignition::rendering::RenderEngine *Engine() const override
+    public: gz::rendering::RenderEngine *Engine() const override
     {
       return HelloWorldRenderEngine::Instance();
     }
@@ -100,5 +106,5 @@ namespace mock
 }
 
 // Register this plugin
-IGNITION_ADD_PLUGIN(mock::HelloWorldPlugin,
-                    ignition::rendering::RenderEnginePlugin)
+GZ_ADD_PLUGIN(mock::HelloWorldPlugin,
+                    gz::rendering::RenderEnginePlugin)

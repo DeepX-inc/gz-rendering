@@ -17,33 +17,22 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
-#include <ignition/common/Event.hh>
+#include "CommonRenderingTest.hh"
 
-#include <ignition/math/Color.hh>
+#include <gz/common/Filesystem.hh>
+#include <gz/common/Event.hh>
 
-#include "test_config.h"  // NOLINT(build/include)
+#include <gz/math/Color.hh>
 
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
-#include "ignition/rendering/SegmentationCamera.hh"
+#include "gz/rendering/Scene.hh"
+#include "gz/rendering/SegmentationCamera.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-class SegmentationCameraTest: public testing::Test,
-  public testing::WithParamInterface<const char *>
+class SegmentationCameraTest: public CommonRenderingTest
 {
-  public: void SegmentationCameraBoxes(const std::string &_renderEngine);
-
-  // Documentation inherited
-  protected: void SetUp() override
-  {
-    ignition::common::Console::SetVerbosity(4);
-  }
 };
 
 /// \brief mutex for thread safety
@@ -104,7 +93,7 @@ void BuildScene(rendering::ScenePtr scene)
   root->AddChild(box1);
 
   // create box visual of different label
-  ignition::rendering::VisualPtr box2 = scene->CreateVisual("box_mid");
+  gz::rendering::VisualPtr box2 = scene->CreateVisual("box_mid");
   box2->AddGeometry(scene->CreateBox());
   box2->SetOrigin(0.0, 0.0, 0.0);
   box2->SetLocalPosition(middlePosition);
@@ -114,32 +103,18 @@ void BuildScene(rendering::ScenePtr scene)
 }
 
 //////////////////////////////////////////////////
-void SegmentationCameraTest::SegmentationCameraBoxes(
-  const std::string &_renderEngine)
+TEST_F(SegmentationCameraTest, SegmentationCameraBoxes)
 {
   // Currently, only ogre2 supports segmentation cameras
-  if (_renderEngine.compare("ogre2") != 0)
-  {
-    ignerr << "Engine '" << _renderEngine
-              << "' doesn't support segmentation cameras" << std::endl;
-    return;
-  }
+  CHECK_SUPPORTED_ENGINE("ogre2");
 
-  // Setup ign-rendering with an empty scene
-  auto *engine = ignition::rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    ignerr << "Engine '" << _renderEngine
-              << "' was unable to be retrieved" << std::endl;
-    return;
-  }
-  ignition::rendering::ScenePtr scene = engine->CreateScene("scene");
+  gz::rendering::ScenePtr scene = engine->CreateScene("scene");
   ASSERT_NE(nullptr, scene);
   BuildScene(scene);
 
   // Create Segmentation camera
   auto camera = scene->CreateSegmentationCamera("SegmentationCamera");
-  ASSERT_NE(camera, nullptr);
+  ASSERT_NE(nullptr, camera);
 
   camera->SetLocalPosition(0.0, 0.0, 0.0);
   camera->SetLocalRotation(0.0, 0.0, 0.0);
@@ -162,13 +137,13 @@ void SegmentationCameraTest::SegmentationCameraBoxes(
   camera->SetAspectRatio(aspectRatio);
   camera->SetImageWidth(width);
   camera->SetImageHeight(height);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
 
   // add camera to the scene
   scene->RootVisual()->AddChild(camera);
 
   // Set a callback on the  camera sensor to get a Segmentation camera frame
-  ignition::common::ConnectionPtr connection =
+  gz::common::ConnectionPtr connection =
       camera->ConnectNewSegmentationFrame(
           std::bind(OnNewSegmentationFrame,
           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
@@ -232,27 +207,11 @@ void SegmentationCameraTest::SegmentationCameraBoxes(
   // instance count
   // the instance count for the right box is 1 and the instance count for the
   // left box is 2 because of how items are sorted when material switching:
-  // https://github.com/ignitionrobotics/ign-rendering/blob/c4e06851605bda75e2ca45a35f0e9bd86fbd7f2f/ogre2/src/Ogre2SegmentationMaterialSwitcher.cc#L171-L179
+  // https://github.com/gazebosim/gz-rendering/blob/c4e06851605bda75e2ca45a35f0e9bd86fbd7f2f/ogre2/src/Ogre2SegmentationMaterialSwitcher.cc#L171-L179
   EXPECT_EQ(1, middleCount);
   EXPECT_EQ(1, rightCount);
   EXPECT_EQ(2, leftCount);
 
   // Clean up
   engine->DestroyScene(scene);
-  ignition::rendering::unloadEngine(engine->Name());
-}
-
-TEST_P(SegmentationCameraTest, SegmentationCameraBoxes)
-{
-  SegmentationCameraBoxes(GetParam());
-}
-
-INSTANTIATE_TEST_CASE_P(SegmentationCamera, SegmentationCameraTest,
-    RENDER_ENGINE_VALUES, ignition::rendering::PrintToStringParam());
-
-//////////////////////////////////////////////////
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

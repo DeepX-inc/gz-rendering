@@ -15,6 +15,35 @@
  *
  */
 
+#ifdef _WIN32
+  // Ensure that Winsock2.h is included before Windows.h, which can get
+  // pulled in by anybody (e.g., Boost).
+  #include <Winsock2.h>
+#endif
+#include <gz/common/Console.hh>
+#include <gz/common/Filesystem.hh>
+#include <gz/common/Util.hh>
+
+#include <gz/plugin/Register.hh>
+
+#include "gz/rendering/GraphicsAPI.hh"
+#include "gz/rendering/InstallationDirectories.hh"
+#include "gz/rendering/RenderEngineManager.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Storage.hh"
+
+#include "Ogre2GzHlmsPbsPrivate.hh"
+#include "Ogre2GzHlmsTerraPrivate.hh"
+#include "Ogre2GzHlmsUnlitPrivate.hh"
+
+#include "Terra/Hlms/OgreHlmsTerra.h"
+#include "Terra/Hlms/PbsListener/OgreHlmsPbsTerraShadows.h"
+#include "Terra/TerraWorkspaceListener.h"
+#include "Ogre2GzHlmsSphericalClipMinDistance.hh"
+
 #if HAVE_GLX
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
@@ -22,44 +51,26 @@
 # include <GL/glxext.h>
 #endif
 
-#ifdef _WIN32
-  // Ensure that Winsock2.h is included before Windows.h, which can get
-  // pulled in by anybody (e.g., Boost).
-  #include <Winsock2.h>
+#if HAVE_EGL
+  #include <EGL/egl.h>
 #endif
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
-#include <ignition/common/Util.hh>
 
-#include <ignition/plugin/Register.hh>
-
-#include "ignition/rendering/GraphicsAPI.hh"
-#include "ignition/rendering/RenderEngineManager.hh"
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Storage.hh"
-
-#include "Terra/Hlms/OgreHlmsTerra.h"
-#include "Terra/Hlms/PbsListener/OgreHlmsPbsTerraShadows.h"
-#include "Terra/TerraWorkspaceListener.h"
-#include "Ogre2IgnHlmsCustomizations.hh"
-
-class ignition::rendering::Ogre2RenderEnginePrivate
+class GZ_RENDERING_OGRE2_HIDDEN
+    gz::rendering::Ogre2RenderEnginePrivate
 {
 #if HAVE_GLX
   public: GLXFBConfig* dummyFBConfigs = nullptr;
 #endif
 
   /// \brief The graphics API to use
-  public: ignition::rendering::GraphicsAPI graphicsAPI{GraphicsAPI::OPENGL};
+  public: gz::rendering::GraphicsAPI graphicsAPI{GraphicsAPI::OPENGL};
 
   /// \brief A list of supported fsaa levels
   public: std::vector<unsigned int> fsaaLevels;
 
   /// \brief Controls Hlms customizations for both PBS and Unlit
-  public: ignition::rendering::Ogre2IgnHlmsCustomizations hlmsCustomizations;
+  public: gz::rendering::Ogre2GzHlmsSphericalClipMinDistance
+  sphericalClipMinDistance;
 
   /// \brief Pbs listener that adds terra shadows
   public: std::unique_ptr<Ogre::HlmsPbsTerraShadows> hlmsPbsTerraShadows;
@@ -67,9 +78,18 @@ class ignition::rendering::Ogre2RenderEnginePrivate
   /// \brief Listener that needs to be in every workspace
   /// that wants terrain to cast shadows from spot and point lights
   public: std::unique_ptr<Ogre::TerraWorkspaceListener> terraWorkspaceListener;
+
+  /// \brief Custom PBS modifications
+  public: Ogre::Ogre2GzHlmsPbs *gzHlmsPbs{nullptr};
+
+  /// \brief Custom Unlit modifications
+  public: Ogre::Ogre2GzHlmsUnlit *gzHlmsUnlit{nullptr};
+
+  /// \brief Custom Terra modifications
+  public: Ogre::Ogre2GzHlmsTerra *gzHlmsTerra{nullptr};
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -151,6 +171,7 @@ void Ogre2RenderEngine::Destroy()
     }
     catch (...)
     {
+      gzerr << "Error deleting ogre root " << std::endl;
     }
     this->ogreRoot = nullptr;
   }
@@ -162,21 +183,36 @@ void Ogre2RenderEngine::Destroy()
   if (this->dummyDisplay)
   {
     Display *x11Display = static_cast<Display*>(this->dummyDisplay);
-    GLXContext x11Context = static_cast<GLXContext>(this->dummyContext);
-    glXDestroyContext(x11Display, x11Context);
+    if (this->dummyContext)
+    {
+      GLXContext x11Context = static_cast<GLXContext>(this->dummyContext);
+      glXDestroyContext(x11Display, x11Context);
+      this->dummyContext = nullptr;
+    }
     XDestroyWindow(x11Display, this->dummyWindowId);
     XCloseDisplay(x11Display);
     this->dummyDisplay = nullptr;
-    XFree(this->dataPtr->dummyFBConfigs);
-    this->dataPtr->dummyFBConfigs = nullptr;
+    if (this->dataPtr->dummyFBConfigs)
+    {
+      XFree(this->dataPtr->dummyFBConfigs);
+      this->dataPtr->dummyFBConfigs = nullptr;
+    }
   }
+#endif
+
+#if HAVE_EGL
+  // release egl per-thread state otherwise this causes a crash on exit if
+  // ogre is created and deleted in a thread
+  // Do this only if we are using GL
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL)
+    eglReleaseThread();
 #endif
 }
 
 //////////////////////////////////////////////////
 bool Ogre2RenderEngine::IsEnabled() const
 {
-  return this->initialized;
+  return BaseRenderEngine::IsEnabled();
 }
 
 //////////////////////////////////////////////////
@@ -195,7 +231,7 @@ void Ogre2RenderEngine::AddResourcePath(const std::string &_uri)
 
   if (path.empty())
   {
-    ignerr << "URI doesn't exist[" << _uri << "]\n";
+    gzerr << "URI doesn't exist[" << _uri << "]\n";
     return;
   }
 
@@ -223,7 +259,7 @@ void Ogre2RenderEngine::AddResourcePath(const std::string &_uri)
         }
         std::sort(paths.begin(), paths.end());
 
-        // Iterate over all the models in the current ign-rendering path
+        // Iterate over all the models in the current gz-rendering path
         for (auto dIter = paths.begin(); dIter != paths.end(); ++dIter)
         {
           std::string fullPath = *dIter;
@@ -250,9 +286,9 @@ void Ogre2RenderEngine::AddResourcePath(const std::string &_uri)
                 matPtr->load();
               }
             }
-            catch(Ogre::Exception& e)
+            catch(Ogre::Exception&)
             {
-              ignerr << "Unable to parse material file[" << fullPath << "]\n";
+              gzerr << "Unable to parse material file[" << fullPath << "]\n";
             }
             stream->close();
           }
@@ -260,9 +296,9 @@ void Ogre2RenderEngine::AddResourcePath(const std::string &_uri)
       }
     }
   }
-  catch(Ogre::Exception &_e)
+  catch(Ogre::Exception &)
   {
-    ignerr << "Unable to load Ogre Resources.\nMake sure the"
+    gzerr << "Unable to load Ogre Resources.\nMake sure the"
         "resources path in the world file is set correctly." << std::endl;
   }
 }
@@ -314,6 +350,15 @@ bool Ogre2RenderEngine::LoadImpl(
         this->dataPtr->graphicsAPI = GraphicsAPI::METAL;
   }
 
+  it = _params.find("vulkan");
+  if (it != _params.end())
+  {
+    bool useVulkan;
+    std::istringstream(it->second) >> useVulkan;
+    if(useVulkan)
+        this->dataPtr->graphicsAPI = GraphicsAPI::VULKAN;
+  }
+
   try
   {
     this->LoadAttempt();
@@ -322,12 +367,12 @@ bool Ogre2RenderEngine::LoadImpl(
   }
   catch (Ogre::Exception &ex)
   {
-    ignerr << ex.what() << std::endl;
+    gzerr << ex.what() << std::endl;
     return false;
   }
   catch (...)
   {
-    ignerr << "Failed to load render-engine" << std::endl;
+    gzerr << "Failed to load render-engine" << std::endl;
     return false;
   }
 }
@@ -342,7 +387,10 @@ bool Ogre2RenderEngine::InitImpl()
   }
   catch (...)
   {
-    ignerr << "Failed to initialize render-engine" << std::endl;
+    gzerr << "Failed to initialize render-engine" << std::endl;
+    gzerr << "Please see the troubleshooting page for possible fixes: "
+          << "https://gazebosim.org/docs/fortress/troubleshooting"
+          << std::endl;
     return false;
   }
 }
@@ -352,8 +400,12 @@ void Ogre2RenderEngine::LoadAttempt()
 {
   this->CreateLogger();
   if (!this->useCurrentGLContext &&
-      this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL)
+      (this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL ||
+       this->dataPtr->graphicsAPI == GraphicsAPI::VULKAN))
+  {
     this->CreateContext();
+  }
+
   this->CreateRoot();
   this->CreateOverlay();
   this->LoadPlugins();
@@ -368,8 +420,8 @@ void Ogre2RenderEngine::CreateLogger()
 {
   // create log file path
   std::string logPath;
-  ignition::common::env(IGN_HOMEDIR, logPath);
-  logPath = common::joinPaths(logPath, ".ignition", "rendering");
+  common::env(GZ_HOMEDIR, logPath);
+  logPath = common::joinPaths(logPath, ".gz", "rendering");
   common::createDirectories(logPath);
   logPath = common::joinPaths(logPath, "ogre2.log");
 
@@ -381,7 +433,6 @@ void Ogre2RenderEngine::CreateLogger()
 //////////////////////////////////////////////////
 void Ogre2RenderEngine::CreateContext()
 {
-#if !defined(__APPLE__) && !defined(_WIN32)
   if (this->Headless())
   {
     // Nothing to do
@@ -396,7 +447,7 @@ void Ogre2RenderEngine::CreateContext()
   {
     // Not able to create a Xwindow, try to run in headless mode
     this->SetHeadless(true);
-    ignwarn << "Unable to open display: " << XDisplayName(0)
+    gzwarn << "Unable to open display: " << XDisplayName(0)
             << ". Trying to run in headless mode." << std::endl;
     return;
   }
@@ -412,57 +463,61 @@ void Ogre2RenderEngine::CreateContext()
     None
   };
 
-  int nelements = 0;
-
-  this->dataPtr->dummyFBConfigs =
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL)
+  {
+    int nelements = 0;
+    this->dataPtr->dummyFBConfigs =
       glXChooseFBConfig(x11Display, screenId, attributeList, &nelements);
 
-  if (nelements <= 0)
-  {
-    ignerr << "Unable to create glx fbconfig" << std::endl;
-    return;
+    if (nelements <= 0)
+    {
+      gzerr << "Unable to create glx fbconfig" << std::endl;
+      return;
+    }
   }
 
   // create X11 context
   this->dummyWindowId = XCreateSimpleWindow(x11Display,
       RootWindow(this->dummyDisplay, screenId), 0, 0, 1, 1, 0, 0, 0);
 
-  PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = 0;
-  glXCreateContextAttribsARB =
-      (PFNGLXCREATECONTEXTATTRIBSARBPROC)
-      glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
-
-  if (glXCreateContextAttribsARB)
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL)
   {
-    int contextAttribs[] = {
-      GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
-      GLX_CONTEXT_MINOR_VERSION_ARB, 3,
-      None
-    };
-    this->dummyContext =
-        glXCreateContextAttribsARB(x11Display,
-                                  this->dataPtr->dummyFBConfigs[0], nullptr,
-                                  1, contextAttribs);
-  }
-  else
-  {
-    ignwarn << "glXCreateContextAttribsARB() not found" << std::endl;
-    this->dummyContext = glXCreateNewContext(x11Display,
-                                             this->dataPtr->dummyFBConfigs[0],
-                                             GLX_RGBA_TYPE, nullptr, 1);
-  }
+    PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = 0;
+    glXCreateContextAttribsARB =
+      (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddress(
+        (const GLubyte *)"glXCreateContextAttribsARB");
 
-  GLXContext x11Context = static_cast<GLXContext>(this->dummyContext);
+    if (glXCreateContextAttribsARB)
+    {
+      int contextAttribs[] = {
+        GLX_CONTEXT_MAJOR_VERSION_ARB, 3,  //
+        GLX_CONTEXT_MINOR_VERSION_ARB, 3,  //
+        None                               //
+      };
+      // clang-format on
+      this->dummyContext =
+        glXCreateContextAttribsARB(x11Display, this->dataPtr->dummyFBConfigs[0],
+                                   nullptr, 1, contextAttribs);
+    }
+    else
+    {
+      gzwarn << "glXCreateContextAttribsARB() not found" << std::endl;
+      this->dummyContext =
+        glXCreateNewContext(x11Display, this->dataPtr->dummyFBConfigs[0],
+                            GLX_RGBA_TYPE, nullptr, 1);
+    }
 
-  if (!this->dummyContext)
-  {
-    ignerr << "Unable to create glx context" << std::endl;
-    return;
+    GLXContext x11Context = static_cast<GLXContext>(this->dummyContext);
+
+    if (!this->dummyContext)
+    {
+      gzerr << "Unable to create glx context" << std::endl;
+      return;
+    }
+
+    // select X11 context
+    glXMakeCurrent(x11Display, this->dummyWindowId, x11Context);
   }
-
-  // select X11 context
-  glXMakeCurrent(x11Display, this->dummyWindowId, x11Context);
-#endif
 #endif
 }
 
@@ -473,9 +528,9 @@ void Ogre2RenderEngine::CreateRoot()
   {
     this->ogreRoot = new Ogre::Root("", "", "");
   }
-  catch (Ogre::Exception &ex)
+  catch (Ogre::Exception &)
   {
-    ignerr << "Unable to create Ogre root" << std::endl;
+    gzerr << "Unable to create Ogre root" << std::endl;
   }
 }
 
@@ -495,8 +550,13 @@ void Ogre2RenderEngine::LoadPlugins()
     if (!common::isDirectory(path))
       continue;
 
-    std::vector<std::string> plugins;
-    std::vector<std::string>::iterator piter;
+    struct PluginName
+    {
+      std::string name;
+      bool bOptional;
+    };
+
+    std::vector<PluginName> plugins;
 
 #ifdef __APPLE__
     std::string extension = ".dylib";
@@ -506,28 +566,37 @@ void Ogre2RenderEngine::LoadPlugins()
     std::string extension = ".so";
 #endif
     std::string p = common::joinPaths(path, "RenderSystem_GL3Plus");
-    plugins.push_back(p);
+    plugins.push_back({ p, false });
     p = common::joinPaths(path, "Plugin_ParticleFX");
-    plugins.push_back(p);
+    plugins.push_back({ p, false });
+
+    if (this->dataPtr->graphicsAPI == GraphicsAPI::VULKAN)
+    {
+      p = common::joinPaths(path, "RenderSystem_Vulkan");
+      // Vulkan is very recent, so mark it as optional, as it
+      // can easily fail to load
+      plugins.push_back({ p, true });
+    }
 
     if (this->dataPtr->graphicsAPI == GraphicsAPI::METAL)
     {
       p = common::joinPaths(path, "RenderSystem_Metal");
-      plugins.push_back(p);
+      plugins.push_back({ p, false });
     }
 
-    for (piter = plugins.begin(); piter != plugins.end(); ++piter)
+    for (std::vector<PluginName>::iterator piter = plugins.begin();
+         piter != plugins.end(); ++piter)
     {
       // check if plugin library exists
-      std::string filename = *piter+extension;
+      std::string filename = piter->name + extension;
       if (!common::exists(filename))
       {
         filename = filename + "." + std::string(OGRE2_VERSION);
         if (!common::exists(filename))
         {
-          if ((*piter).find("RenderSystem") != std::string::npos)
+          if (piter->name.find("RenderSystem") != std::string::npos)
           {
-            ignerr << "Unable to find Ogre Plugin[" << *piter
+            gzerr << "Unable to find Ogre Plugin[" << piter->name
                    << "]. Rendering will not be possible."
                    << "Make sure you have installed OGRE properly.\n";
           }
@@ -538,14 +607,26 @@ void Ogre2RenderEngine::LoadPlugins()
       // load the plugin
       try
       {
+#if HAVE_GLX
+        // Store the current GLX context in case OGRE plugin init changes it
+        const auto context = glXGetCurrentContext();
+        const auto display = glXGetCurrentDisplay();
+        const auto drawable = glXGetCurrentDrawable();
+#endif
+
         // Load the plugin into OGRE
-        this->ogreRoot->loadPlugin(filename);
+        this->ogreRoot->loadPlugin(filename, piter->bOptional, nullptr);
+
+#if HAVE_GLX
+        // Restore GLX context
+        glXMakeCurrent(display, drawable, context);
+#endif
       }
-      catch(Ogre::Exception &e)
+      catch(Ogre::Exception &)
       {
-        if ((*piter).find("RenderSystem") != std::string::npos)
+        if (piter->name.find("RenderSystem") != std::string::npos)
         {
-          ignerr << "Unable to load Ogre Plugin[" << *piter
+          gzerr << "Unable to load Ogre Plugin[" << piter->name
                  << "]. Rendering will not be possible."
                  << "Make sure you have installed OGRE properly.\n";
         }
@@ -562,6 +643,10 @@ void Ogre2RenderEngine::CreateRenderSystem()
 
   rsList = &(this->ogreRoot->getAvailableRenderers());
   std::string targetRenderSysName("OpenGL 3+ Rendering Subsystem");
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::VULKAN)
+  {
+    targetRenderSysName = "Vulkan Rendering Subsystem";
+  }
   if (this->dataPtr->graphicsAPI == GraphicsAPI::METAL)
   {
     targetRenderSysName = "Metal Rendering Subsystem";
@@ -571,23 +656,28 @@ void Ogre2RenderEngine::CreateRenderSystem()
 
   renderSys = nullptr;
 
-  do
   {
-    if (c == static_cast<int>(rsList->size()))
-      break;
+    bool bContinue = false;
+    do
+    {
+      if (c == static_cast<int>(rsList->size()))
+        break;
 
-    renderSys = rsList->at(c);
-    c++;
+      renderSys = rsList->at(c);
+      c++;
+
+      // cpplint has a false positive when extending a while call to multiple
+      // lines (it thinks the while loop is empty), so we must put the whole
+      // while statement on one line and add NOLINT at the end so that cpplint
+      // doesn't complain about the line being too long
+      bContinue =
+        renderSys && renderSys->getName().compare(targetRenderSysName) != 0;
+    } while (bContinue);
   }
-  // cpplint has a false positive when extending a while call to multiple lines
-  // (it thinks the while loop is empty), so we must put the whole while
-  // statement on one line and add NOLINT at the end so that cpplint doesn't
-  // complain about the line being too long
-  while (renderSys && renderSys->getName().compare(targetRenderSysName) != 0); // NOLINT
 
   if (renderSys == nullptr)
   {
-    ignerr << "unable to find " << targetRenderSysName << ". OGRE is probably "
+    gzerr << "unable to find " << targetRenderSysName << ". OGRE is probably "
             "installed incorrectly. Double check the OGRE cmake output, "
             "and make sure OpenGL is enabled." << std::endl;
   }
@@ -598,12 +688,16 @@ void Ogre2RenderEngine::CreateRenderSystem()
     // We operate in windowed mode
     renderSys->setConfigOption("Full Screen", "No");
 
-    /// We used to allow the user to set the RTT mode to PBuffer, FBO, or Copy.
-    ///   Copy is slow, and there doesn't seem to be a good reason to use it
-    ///   PBuffer limits the size of the renderable area of the RTT to the
-    ///           size of the first window created.
-    ///   FBO seem to be the only good option
-    renderSys->setConfigOption("RTT Preferred Mode", "FBO");
+    if (this->dataPtr->graphicsAPI == GraphicsAPI::OPENGL)
+    {
+      /// We used to allow the user to set the RTT mode to PBuffer,
+      /// FBO, or Copy.
+      ///   Copy is slow, and there doesn't seem to be a good reason to use it
+      ///   PBuffer limits the size of the renderable area of the RTT to the
+      ///           size of the first window created.
+      ///   FBO is the only good option
+      renderSys->setConfigOption("RTT Preferred Mode", "FBO");
+    }
   }
   else
   {
@@ -657,9 +751,24 @@ void Ogre2RenderEngine::CreateRenderSystem()
 
 void Ogre2RenderEngine::RegisterHlms()
 {
-  const char *env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env = std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
+
   // install path
   std::string mediaPath = common::joinPaths(resourcePath, "ogre2", "media");
   if (!common::exists(mediaPath))
@@ -682,10 +791,6 @@ void Ogre2RenderEngine::RegisterHlms()
       rootHlmsFolder, "2.0", "scripts", "materials", "Common", "GLSL");
   Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
       commonGLSLMaterialFolder, "FileSystem", "General");
-  Ogre::String commonGLSLESMaterialFolder = common::joinPaths(
-      rootHlmsFolder, "2.0", "scripts", "materials", "Common", "GLSLES");
-  Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-      commonGLSLESMaterialFolder, "FileSystem", "General");
   Ogre::String terraMaterialFolder = common::joinPaths(
       rootHlmsFolder, "2.0", "scripts", "materials", "Terra");
   Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
@@ -725,14 +830,15 @@ void Ogre2RenderEngine::RegisterHlms()
   Ogre::ArchiveManager &archiveManager = Ogre::ArchiveManager::getSingleton();
 
   Ogre::Archive *customizationsArchiveLibrary =
-      archiveManager.load(common::joinPaths(rootHlmsFolder, "Hlms", "Ignition"),
+      archiveManager.load(common::joinPaths(rootHlmsFolder, "Hlms", "Gz"),
       "FileSystem", true);
 
   {
-    Ogre::HlmsUnlit *hlmsUnlit = 0;
+    Ogre::Ogre2GzHlmsUnlit *hlmsUnlit = 0;
     // Create & Register HlmsUnlit
     // Get the path to all the subdirectories used by HlmsUnlit
-    Ogre::HlmsUnlit::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
+    Ogre::Ogre2GzHlmsUnlit::getDefaultPaths(mainFolderPath,
+                                             libraryFoldersPaths);
     Ogre::Archive *archiveUnlit = archiveManager.load(
         rootHlmsFolder + mainFolderPath, "FileSystem", true);
     Ogre::ArchiveVec archiveUnlitLibraryFolders;
@@ -750,25 +856,36 @@ void Ogre2RenderEngine::RegisterHlms()
     archiveUnlitLibraryFolders.push_back(customizationsArchiveLibrary);
 
     // Create and register the unlit Hlms
-    hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit(archiveUnlit,
-        &archiveUnlitLibraryFolders);
+    hlmsUnlit = OGRE_NEW Ogre::Ogre2GzHlmsUnlit(
+      archiveUnlit, &archiveUnlitLibraryFolders,
+      &this->dataPtr->sphericalClipMinDistance);
     Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsUnlit);
 
     // disable writting debug output to disk
     hlmsUnlit->setDebugOutputPath(false, false);
-    hlmsUnlit->setListener(&this->dataPtr->hlmsCustomizations);
+    hlmsUnlit->setListener(hlmsUnlit);
+
+    this->dataPtr->gzHlmsUnlit = hlmsUnlit;
   }
 
   {
-    Ogre::HlmsPbs *hlmsPbs = 0;
+    Ogre::Ogre2GzHlmsPbs *hlmsPbs = 0;
     // Create & Register HlmsPbs
     // Do the same for HlmsPbs:
-    Ogre::HlmsPbs::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
+    Ogre::Ogre2GzHlmsPbs::GetDefaultPaths(mainFolderPath, libraryFoldersPaths);
     Ogre::Archive *archivePbs = archiveManager.load(
         rootHlmsFolder + mainFolderPath, "FileSystem", true);
 
     // Get the library archive(s)
     Ogre::ArchiveVec archivePbsLibraryFolders;
+
+    {
+      archivePbsLibraryFolders.push_back(archiveManager.load(
+        rootHlmsFolder + common::joinPaths("Hlms", "Terra", "GLSL",
+        "PbsTerraShadows"), "FileSystem", true ));
+      this->dataPtr->hlmsPbsTerraShadows.reset(new Ogre::HlmsPbsTerraShadows());
+    }
+
     libraryFolderPathIt = libraryFoldersPaths.begin();
     libraryFolderPathEn = libraryFoldersPaths.end();
     while (libraryFolderPathIt != libraryFolderPathEn)
@@ -781,41 +898,29 @@ void Ogre2RenderEngine::RegisterHlms()
     }
 
     archivePbsLibraryFolders.push_back(customizationsArchiveLibrary);
-    {
-      archivePbsLibraryFolders.push_back(archiveManager.load(
-        rootHlmsFolder + common::joinPaths("Hlms", "Terra", "GLSL",
-        "PbsTerraShadows"), "FileSystem", true ));
-      this->dataPtr->hlmsPbsTerraShadows.reset(new Ogre::HlmsPbsTerraShadows());
-    }
 
     // Create and register
-    hlmsPbs = OGRE_NEW Ogre::HlmsPbs(archivePbs, &archivePbsLibraryFolders);
-    hlmsPbs->setListener(this->dataPtr->hlmsPbsTerraShadows.get());
+    hlmsPbs =
+      OGRE_NEW Ogre::Ogre2GzHlmsPbs(archivePbs, &archivePbsLibraryFolders,
+                                     &this->dataPtr->sphericalClipMinDistance,
+                                     this->dataPtr->hlmsPbsTerraShadows.get());
     Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsPbs);
 
     // disable writting debug output to disk
     hlmsPbs->setDebugOutputPath(false, false);
+    hlmsPbs->setListener(hlmsPbs);
 
-#if IGNITION_RENDERING_MAJOR_VERSION >= 7
-    IGN_ASSERT(
-      hlmsPbs->getListener() != &this->dataPtr->hlmsCustomizations &&
-        hlmsPbs->getListener() != this->dataPtr->hlmsPbsTerraShadows.get(),
-      "Bad merge! In ign-rendering7 there's a new listener that will "
-      "coordinate all other listeners. Watch out all 3 Hlms (Unlit, Pbs, "
-      "Terra)");
-#endif
+    dataPtr->gzHlmsPbs = hlmsPbs;
   }
 
   {
-    Ogre::HlmsTerra *hlmsTerra = 0;
+    Ogre::Ogre2GzHlmsTerra *hlmsTerra = 0;
     // Create & Register HlmsPbs
     // Do the same for HlmsPbs:
-    Ogre::HlmsTerra::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
+    Ogre::Ogre2GzHlmsTerra::GetDefaultPaths(mainFolderPath,
+                                             libraryFoldersPaths);
     Ogre::Archive *archiveTerra = archiveManager.load(
         rootHlmsFolder + mainFolderPath, "FileSystem", true);
-
-    // Add ignition's customizations
-    libraryFoldersPaths.push_back(common::joinPaths("Hlms", "Terra", "ign"));
 
     // Get the library archive(s)
     Ogre::ArchiveVec archiveTerraLibraryFolders;
@@ -831,24 +936,42 @@ void Ogre2RenderEngine::RegisterHlms()
     }
 
     // Create and register
-    hlmsTerra = OGRE_NEW Ogre::HlmsTerra(archiveTerra,
-                                         &archiveTerraLibraryFolders);
+    hlmsTerra = OGRE_NEW Ogre::Ogre2GzHlmsTerra(
+      archiveTerra, &archiveTerraLibraryFolders,
+      &this->dataPtr->sphericalClipMinDistance);
     Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsTerra);
 
     // disable writting debug output to disk
     hlmsTerra->setDebugOutputPath(false, false);
+    hlmsTerra->setListener(hlmsTerra);
 
     this->dataPtr->terraWorkspaceListener.reset(
       new Ogre::TerraWorkspaceListener(hlmsTerra));
+
+    this->dataPtr->gzHlmsTerra = hlmsTerra;
   }
 }
 
 //////////////////////////////////////////////////
 void Ogre2RenderEngine::CreateResources()
 {
-  const char *env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env = std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
   // install path
   std::string mediaPath = common::joinPaths(resourcePath, "ogre2", "media");
   if (!common::exists(mediaPath))
@@ -886,7 +1009,7 @@ void Ogre2RenderEngine::CreateResources()
       }
       catch(Ogre::Exception &/*_e*/)
       {
-        ignerr << "Unable to load Ogre Resources. Make sure the resources "
+        gzerr << "Unable to load Ogre Resources. Make sure the resources "
             "path in the world file is set correctly." << std::endl;
       }
     }
@@ -897,11 +1020,37 @@ void Ogre2RenderEngine::CreateResources()
 void Ogre2RenderEngine::CreateRenderWindow()
 {
   // create dummy window
-  auto res = this->CreateRenderWindow(std::to_string(this->dummyWindowId),
-      1, 1, 1, 0);
+  std::string handle;
+
+  struct SDLx11
+  {
+    void *display;    // The X11 display
+    uint64_t window;  // The X11 window
+  };
+
+  SDLx11 vulkanX11Data;
+
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::VULKAN)
+  {
+    if(this->dummyWindowId && this->dummyDisplay)
+    {
+      vulkanX11Data.window = this->dummyWindowId;
+      vulkanX11Data.display = this->dummyDisplay;
+      handle = std::to_string((uintptr_t)&vulkanX11Data);
+    }
+  }
+  else
+  {
+    handle = std::to_string(this->dummyWindowId);
+  }
+
+  auto res = this->CreateRenderWindow(handle, 1, 1, 1, 0);
   if (res.empty())
   {
-    ignerr << "Failed to create dummy render window." << std::endl;
+    gzerr << "Failed to create dummy render window." << std::endl;
+    gzerr << "Please see the troubleshooting page for possible fixes: "
+          << "https://gazebosim.org/docs/fortress/troubleshooting"
+          << std::endl;
   }
 }
 
@@ -912,17 +1061,27 @@ std::string Ogre2RenderEngine::CreateRenderWindow(const std::string &_handle,
 {
   Ogre::StringVector paramsVector;
   Ogre::NameValuePairList params;
-  window = nullptr;
+  this->window = nullptr;
 
-  // if use current gl then don't include window handle params
-  if (!this->useCurrentGLContext)
+  if (this->dataPtr->graphicsAPI == GraphicsAPI::VULKAN)
   {
-    // Mac and Windows *must* use externalWindow handle.
+    if (!_handle.empty())
+    {
+      params["SDL2x11"] = _handle;
+    }
+  }
+  else
+  {
+    // if use current gl then don't include window handle params
+    if (!this->useCurrentGLContext)
+    {
+      // Mac and Windows *must* use externalWindow handle.
 #if defined(__APPLE__) || defined(_MSC_VER)
-    params["externalWindowHandle"] = _handle;
+      params["externalWindowHandle"] = _handle;
 #else
-    params["parentWindowHandle"] = _handle;
+      params["parentWindowHandle"] = _handle;
 #endif
+    }
   }
 
   params["FSAA"] = std::to_string(_antiAliasing);
@@ -962,35 +1121,36 @@ std::string Ogre2RenderEngine::CreateRenderWindow(const std::string &_handle,
 #endif
 
   int attempts = 0;
-  while (window == nullptr && (attempts++) < 10)
+  while (this->window == nullptr && (attempts++) < 10)
   {
     try
     {
-      window = Ogre::Root::getSingleton().createRenderWindow(
+      this->window = Ogre::Root::getSingleton().createRenderWindow(
           stream.str(), _width, _height, false, &params);
-      this->RegisterHlms();
     }
     catch(const std::exception &_e)
     {
-      ignerr << " Unable to create the rendering window: " << _e.what()
+      gzerr << " Unable to create the rendering window: " << _e.what()
              << std::endl;
-      window = nullptr;
+      this->window = nullptr;
     }
   }
 
   if (attempts >= 10)
   {
-    ignerr << "Unable to create the rendering window after [" << attempts
+    gzerr << "Unable to create the rendering window after [" << attempts
            << "] attempts." << std::endl;
     return std::string();
   }
 
-  if (window)
+  this->RegisterHlms();
+
+  if (this->window)
   {
-    window->_setVisible(true);
+    this->window->_setVisible(true);
 
     // Windows needs to reposition the render window to 0,0.
-    window->reposition(0, 0);
+    this->window->reposition(0, 0);
   }
   return stream.str();
 }
@@ -1019,15 +1179,31 @@ std::vector<unsigned int> Ogre2RenderEngine::FSAALevels() const
 }
 
 /////////////////////////////////////////////////
-Ogre2IgnHlmsCustomizations& Ogre2RenderEngine::HlmsCustomizations()
+Ogre2GzHlmsSphericalClipMinDistance& Ogre2RenderEngine::HlmsCustomizations()
 {
-  return this->dataPtr->hlmsCustomizations;
+  return this->dataPtr->sphericalClipMinDistance;
+}
+
+/////////////////////////////////////////////////
+Ogre2GzHlmsSphericalClipMinDistance& Ogre2RenderEngine::
+SphericalClipMinDistance()
+{
+  return this->dataPtr->sphericalClipMinDistance;
 }
 
 /////////////////////////////////////////////////
 Ogre::v1::OverlaySystem *Ogre2RenderEngine::OverlaySystem() const
 {
   return this->ogreOverlaySystem;
+}
+
+/////////////////////////////////////////////////
+void Ogre2RenderEngine::SetGzOgreRenderingMode(
+  GzOgreRenderingMode renderingMode)
+{
+  this->dataPtr->gzHlmsPbs->gzOgreRenderingMode = renderingMode;
+  this->dataPtr->gzHlmsUnlit->gzOgreRenderingMode = renderingMode;
+  this->dataPtr->gzHlmsTerra->gzOgreRenderingMode = renderingMode;
 }
 
 /////////////////////////////////////////////////
@@ -1043,6 +1219,12 @@ Ogre::CompositorWorkspaceListener *Ogre2RenderEngine::TerraWorkspaceListener()
   return this->dataPtr->terraWorkspaceListener.get();
 }
 
+//////////////////////////////////////////////////
+Ogre2RenderEngine *Ogre2RenderEngine::Instance()
+{
+  return SingletonT<Ogre2RenderEngine>::Instance();
+}
+
 // Register this plugin
-IGNITION_ADD_PLUGIN(ignition::rendering::Ogre2RenderEnginePlugin,
-                    ignition::rendering::RenderEnginePlugin)
+GZ_ADD_PLUGIN(rendering::Ogre2RenderEnginePlugin,
+              rendering::RenderEnginePlugin)

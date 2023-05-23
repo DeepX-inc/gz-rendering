@@ -1,13 +1,6 @@
-# set compile definitions for tests
-set_property(
-  SOURCE Camera_TEST.cc RenderTarget.cc
-  PROPERTY COMPILE_DEFINITIONS
-  HAVE_OPENGL="${HAVE_OPENGL}"
-)
-
 # Collect source files into the "sources" variable and unit test files into the
 # "gtest_sources" variable.
-ign_get_libsources_and_unittests(sources gtest_sources)
+gz_get_libsources_and_unittests(sources gtest_sources)
 
 add_subdirectory(base)
 
@@ -21,28 +14,40 @@ if (MSVC)
 endif()
 
 # Create the library target.
-ign_create_core_library(SOURCES ${sources} CXX_STANDARD 17)
+gz_create_core_library(SOURCES ${sources})
+gz_add_get_install_prefix_impl(GET_INSTALL_PREFIX_FUNCTION gz::rendering::getInstallPrefix
+                               GET_INSTALL_PREFIX_HEADER gz/rendering/InstallationDirectories.hh
+                               OVERRIDE_INSTALL_PREFIX_ENV_VARIABLE GZ_RENDERING_INSTALL_PREFIX)
 
 # Include the interface directories that we always need.
-#ign_target_interface_include_directories(${PROJECT_LIBRARY_TARGET_NAME}
-#  ignition-math${IGN_MATH_VER})
+#gz_target_interface_include_directories(${PROJECT_LIBRARY_TARGET_NAME}
+#  gz-math${GZ_MATH_VER})
 
 set_property(
   SOURCE RenderEngineManager.cc
   PROPERTY COMPILE_DEFINITIONS
-  IGN_RENDERING_PLUGIN_PATH="${IGN_RENDERING_PLUGIN_PATH}"
+  GZ_RENDERING_PLUGIN_PATH="${GZ_RENDERING_PLUGIN_PATH}"
+)
+
+set_property(
+  SOURCE InstallationDirectories.cc
+  PROPERTY COMPILE_DEFINITIONS
+  GZ_RENDERING_RELATIVE_RESOURCE_PATH="${GZ_RENDERING_RELATIVE_RESOURCE_PATH}"
+  GZ_RENDERING_ENGINE_RELATIVE_INSTALL_DIR="${GZ_RENDERING_ENGINE_RELATIVE_INSTALL_DIR}"
 )
 
 target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME}
   PUBLIC
-  ignition-common${IGN_COMMON_VER}::requested
+  gz-common${GZ_COMMON_VER}::requested
+  gz-utils${GZ_UTILS_VER}::gz-utils${GZ_UTILS_VER}
   PRIVATE
-  ignition-plugin${IGN_PLUGIN_VER}::loader
+  gz-plugin${GZ_PLUGIN_VER}::loader
 )
 if (UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME} PRIVATE X11)
 endif()
 
 # Build the unit tests.
-ign_build_tests(TYPE UNIT SOURCES ${gtest_sources})
-
+gz_build_tests(TYPE UNIT
+               SOURCES ${gtest_sources}
+               ENVIRONMENT GZ_RENDERING_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX})

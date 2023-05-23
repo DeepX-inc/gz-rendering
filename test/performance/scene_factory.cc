@@ -22,30 +22,22 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
+#include "CommonRenderingTest.hh"
 
-#include "test_config.h"  // NOLINT(build/include)
+#include "gz/rendering/Scene.hh"
 
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
+#include <gz/utils/ExtraTestMacros.hh>
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 
 /// \brief Create and destroy objects using Scene, profile memory usage and
 /// check for memory leak
-class SceneFactoryTest: public testing::Test,
-                     public testing::WithParamInterface<const char *>
+class SceneFactoryTest: public CommonRenderingTest
 {
-  /// \brief Test creating and destroying materials
-  public: void MaterialMemoryLeak(const std::string &_renderEngine);
-
-  /// \brief Test creating and destroying visuals
-  public: void VisualMemoryLeak(const std::string &_renderEngine);
+  public: void checkMemLeak(const std::function<void(ScenePtr)> &_cb);
 };
-
 
 /////////////////////////////////////////////////
 void getMemInfo(double &_resident, double &_share)
@@ -73,29 +65,21 @@ void getMemInfo(double &_resident, double &_share)
                                 (task_info_t)&t_info,
                                 &t_info_count))
   {
-    ignerr << "failure calling task_info\n";
+    gzerr << "failure calling task_info\n";
     return;
   }
   _resident = static_cast<double>(t_info.resident_size/1024);
   _share = static_cast<double>(t_info.virtual_size/1024);
 #else
-  ignerr << "Unsupported architecture\n";
+  gzerr << "Unsupported architecture\n";
   return;
 #endif
 }
 
 /////////////////////////////////////////////////
-void checkMemLeak(const std::string &_renderEngine,
-    const std::function<void(ScenePtr)> &_cb)
+void SceneFactoryTest::checkMemLeak(const std::function<void(ScenePtr)> &_cb)
 {
-  auto engine = rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    igndbg << "Engine '" << _renderEngine << "' is not supported" << std::endl;
-    return;
-  }
-
-  auto scene = engine->CreateScene("scene");
+  auto scene = this->engine->CreateScene("scene");
   ASSERT_NE(nullptr, scene);
 
   // max memory change allowed
@@ -119,21 +103,20 @@ void checkMemLeak(const std::string &_renderEngine,
   double resPercentChange = (residentEnd - residentStart) / residentStart;
   double sharePercentChange = (shareEnd - shareStart) / shareStart;
 
-  igndbg << "ResPercentChange[" << resPercentChange << "] "
+  gzdbg << "ResPercentChange[" << resPercentChange << "] "
     << "ResMaxPercentChange[" << resMaxPercentChange << "]" << std::endl;
-  igndbg << "SharePercentChange[" << sharePercentChange << "] "
+  gzdbg << "SharePercentChange[" << sharePercentChange << "] "
     << "ShareMaxPercentChange[" << shareMaxPercentChange << "]" << std::endl;
 
   EXPECT_LT(resPercentChange, resMaxPercentChange);
   EXPECT_LT(sharePercentChange, shareMaxPercentChange);
 
   // Clean up
-  engine->DestroyScene(scene);
-  rendering::unloadEngine(engine->Name());
+  this->engine->DestroyScene(scene);
 }
 
 /////////////////////////////////////////////////
-void SceneFactoryTest::MaterialMemoryLeak(const std::string &_renderEngine)
+TEST_F(SceneFactoryTest, GZ_UTILS_TEST_DISABLED_ON_WIN32(MaterialMemoryLeak))
 {
   auto function = [](ScenePtr _scene)
   {
@@ -145,11 +128,11 @@ void SceneFactoryTest::MaterialMemoryLeak(const std::string &_renderEngine)
     }
   };
 
-  checkMemLeak(_renderEngine, function);
+  checkMemLeak(function);
 }
 
 /////////////////////////////////////////////////
-void SceneFactoryTest::VisualMemoryLeak(const std::string &_renderEngine)
+TEST_F(SceneFactoryTest, GZ_UTILS_TEST_DISABLED_ON_WIN32(VisualMemoryLeak))
 {
   auto function = [](ScenePtr _scene)
   {
@@ -175,27 +158,5 @@ void SceneFactoryTest::VisualMemoryLeak(const std::string &_renderEngine)
     }
   };
 
-  checkMemLeak(_renderEngine, function);
-}
-
-/////////////////////////////////////////////////
-TEST_P(SceneFactoryTest, MaterialMemoryLeak)
-{
-  MaterialMemoryLeak(GetParam());
-}
-
-/////////////////////////////////////////////////
-TEST_P(SceneFactoryTest, VisualMemoryLeak)
-{
-  VisualMemoryLeak(GetParam());
-}
-
-INSTANTIATE_TEST_CASE_P(SceneFactory, SceneFactoryTest,
-    RENDER_ENGINE_VALUES,
-    ignition::rendering::PrintToStringParam());
-
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  this->checkMemLeak(function);
 }

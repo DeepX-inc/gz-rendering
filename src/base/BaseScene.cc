@@ -17,53 +17,49 @@
 
 #include <sstream>
 
-#include <ignition/math/Helpers.hh>
+#include <gz/math/Helpers.hh>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Mesh.hh>
-#include <ignition/common/MeshManager.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Mesh.hh>
+#include <gz/common/MeshManager.hh>
 
-#include "ignition/common/Time.hh"
+#include "gz/rendering/ArrowVisual.hh"
+#include "gz/rendering/AxisVisual.hh"
+#include "gz/rendering/BoundingBoxCamera.hh"
+#include "gz/rendering/COMVisual.hh"
+#include "gz/rendering/InertiaVisual.hh"
+#include "gz/rendering/InstallationDirectories.hh"
+#include "gz/rendering/JointVisual.hh"
+#include "gz/rendering/LidarVisual.hh"
+#include "gz/rendering/LightVisual.hh"
+#include "gz/rendering/Camera.hh"
+#include "gz/rendering/Capsule.hh"
+#include "gz/rendering/DepthCamera.hh"
+#include "gz/rendering/GizmoVisual.hh"
+#include "gz/rendering/GpuRays.hh"
+#include "gz/rendering/Grid.hh"
+#include "gz/rendering/ParticleEmitter.hh"
+#include "gz/rendering/Projector.hh"
+#include "gz/rendering/RayQuery.hh"
+#include "gz/rendering/RenderTarget.hh"
+#include "gz/rendering/Text.hh"
+#include "gz/rendering/ThermalCamera.hh"
+#include "gz/rendering/SegmentationCamera.hh"
+#include "gz/rendering/Visual.hh"
+#include "gz/rendering/WideAngleCamera.hh"
+#include "gz/rendering/base/BaseStorage.hh"
+#include "gz/rendering/base/BaseScene.hh"
 
-#include "ignition/rendering/ArrowVisual.hh"
-#include "ignition/rendering/AxisVisual.hh"
-#include "ignition/rendering/BoundingBoxCamera.hh"
-#include "ignition/rendering/COMVisual.hh"
-#include "ignition/rendering/InertiaVisual.hh"
-#include "ignition/rendering/JointVisual.hh"
-#include "ignition/rendering/LidarVisual.hh"
-#include "ignition/rendering/LightVisual.hh"
-#include "ignition/rendering/Camera.hh"
-#include "ignition/rendering/Capsule.hh"
-#include "ignition/rendering/DepthCamera.hh"
-#include "ignition/rendering/GizmoVisual.hh"
-#include "ignition/rendering/GpuRays.hh"
-#include "ignition/rendering/Grid.hh"
-#include "ignition/rendering/ParticleEmitter.hh"
-#include "ignition/rendering/RayQuery.hh"
-#include "ignition/rendering/RenderTarget.hh"
-#include "ignition/rendering/Text.hh"
-#include "ignition/rendering/ThermalCamera.hh"
-#include "ignition/rendering/SegmentationCamera.hh"
-#include "ignition/rendering/Visual.hh"
-#include "ignition/rendering/base/BaseStorage.hh"
-#include "ignition/rendering/base/BaseScene.hh"
-
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-// Prevent deprecation warnings for simTime
-#ifndef _WIN32
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 //////////////////////////////////////////////////
 BaseScene::BaseScene(unsigned int _id, const std::string &_name) :
   id(_id),
   name(_name),
   loaded(false),
   initialized(false),
-  nextObjectId(ignition::math::MAX_UI16),
+  nextObjectId(math::MAX_UI16),
   nodes(nullptr)
 {
 }
@@ -72,9 +68,6 @@ BaseScene::BaseScene(unsigned int _id, const std::string &_name) :
 BaseScene::~BaseScene()
 {
 }
-#ifndef _WIN32
-# pragma GCC diagnostic pop
-#endif
 
 //////////////////////////////////////////////////
 void BaseScene::Load()
@@ -90,7 +83,7 @@ void BaseScene::Init()
 {
   if (!this->loaded)
   {
-    ignerr << "Scene must be loaded first" << std::endl;
+    gzerr << "Scene must be loaded first" << std::endl;
     return;
   }
 
@@ -141,37 +134,12 @@ std::chrono::steady_clock::duration BaseScene::Time() const
 //////////////////////////////////////////////////
 void BaseScene::SetTime(const std::chrono::steady_clock::duration &_time)
 {
-#if IGNITION_RENDERING_MAJOR_VERSION <= 6
-  // TODO(anyone): Remove me in ign-rendering7
-  if (std::chrono::duration_cast<std::chrono::nanoseconds>(_time).count() != -1)
-#endif
-  {
-    this->time = _time;
-  }
+  this->time = _time;
 }
-
-//////////////////////////////////////////////////
-#ifndef _WIN32
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-common::Time BaseScene::SimTime() const
-{
-  return this->simTime;
-}
-
-////////////////////////////////////////////////////
-void BaseScene::SetSimTime(const common::Time &_time)
-{
-  this->simTime = _time;
-}
-#ifndef _WIN32
-# pragma GCC diagnostic pop
-#endif
 
 //////////////////////////////////////////////////
 VisualPtr BaseScene::VisualAt(const CameraPtr &_camera,
-                              const ignition::math::Vector2i &_mousePos)
+                              const math::Vector2i &_mousePos)
 {
   VisualPtr visual;
   RayQueryPtr rayQuery = this->CreateRayQuery();
@@ -190,7 +158,7 @@ VisualPtr BaseScene::VisualAt(const CameraPtr &_camera,
     rayQuery->SetFromCamera(_camera, mousePos);
     RayQueryResult result = rayQuery->ClosestPoint();
 
-    if (result)
+    if (result.objectId > 0u)
     {
       visual = this->Visuals()->GetById(result.objectId);
     }
@@ -326,7 +294,7 @@ void BaseScene::DestroyNodeRecursive(NodePtr _node,
   // check if we have visited this node before
   if (_nodeIds.find(_node->Id()) != _nodeIds.end())
   {
-    ignwarn << "Detected loop in scene tree while recursively destroying nodes."
+    gzwarn << "Detected loop in scene tree while recursively destroying nodes."
             << " Breaking loop." << std::endl;
     _node->RemoveParent();
     return;
@@ -883,6 +851,36 @@ SegmentationCameraPtr BaseScene::CreateSegmentationCamera(
 }
 
 //////////////////////////////////////////////////
+WideAngleCameraPtr BaseScene::CreateWideAngleCamera()
+{
+  unsigned int objId = this->CreateObjectId();
+  return this->CreateWideAngleCamera(objId);
+}
+//////////////////////////////////////////////////
+WideAngleCameraPtr BaseScene::CreateWideAngleCamera(
+  const unsigned int _id)
+{
+  std::string objName = this->CreateObjectName(_id, "WideAngleCamera");
+  return this->CreateWideAngleCamera(_id, objName);
+}
+//////////////////////////////////////////////////
+WideAngleCameraPtr BaseScene::CreateWideAngleCamera(
+  const std::string &_name)
+{
+  unsigned int objId = this->CreateObjectId();
+  return this->CreateWideAngleCamera(objId, _name);
+}
+//////////////////////////////////////////////////
+WideAngleCameraPtr BaseScene::CreateWideAngleCamera(
+  const unsigned int _id,
+    const std::string &_name)
+{
+  WideAngleCameraPtr camera = this->CreateWideAngleCameraImpl(_id, _name);
+  bool result = this->RegisterSensor(camera);
+  return (result) ? camera : nullptr;
+}
+
+//////////////////////////////////////////////////
 GpuRaysPtr BaseScene::CreateGpuRays()
 {
   unsigned int objId = this->CreateObjectId();
@@ -1364,13 +1362,44 @@ ParticleEmitterPtr BaseScene::CreateParticleEmitter(unsigned int _id,
   return (result) ? visual : nullptr;
 }
 
+// \todo(iche033) uncomment in gz-rendering8
+// //////////////////////////////////////////////////
+// ProjectorPtr BaseScene::CreateProjector()
+// {
+//   unsigned int objId = this->CreateObjectId();
+//   return this->CreateProjector(objId);
+// }
+//
+// //////////////////////////////////////////////////
+// ProjectorPtr BaseScene::CreateProjector(unsigned int _id)
+// {
+//   std::string objName = this->CreateObjectName(_id, "Projector");
+//   return this->CreateProjector(_id, objName);
+// }
+//
+// //////////////////////////////////////////////////
+// ProjectorPtr BaseScene::CreateProjector(const std::string &_name)
+// {
+//   unsigned int objId = this->CreateObjectId();
+//   return this->CreateProjector(objId, _name);
+// }
+//
+// //////////////////////////////////////////////////
+// ProjectorPtr BaseScene::CreateProjector(unsigned int _id,
+//     const std::string &_name)
+// {
+//   ProjectorPtr projector = this->CreateProjectorImpl(_id, _name);
+//   bool result = this->RegisterVisual(projector);
+//   return (result) ? projector : nullptr;
+// }
+
 //////////////////////////////////////////////////
 void BaseScene::SetSkyEnabled(bool _enabled)  // NOLINT(readability/casting)
 {
   // no op, let derived class implement this.
   if (_enabled)
   {
-    ignerr << "Sky not supported by: "
+    gzerr << "Sky not supported by: "
            << this->Engine()->Name() << std::endl;
   }
 }
@@ -1421,7 +1450,7 @@ void BaseScene::Clear()
     this->DestroyNode(root);
   }
   this->DestroyMaterials();
-  this->nextObjectId = ignition::math::MAX_UI16;
+  this->nextObjectId = math::MAX_UI16;
 }
 
 //////////////////////////////////////////////////
@@ -1550,15 +1579,29 @@ void BaseScene::CreateMaterials()
   material->SetReceiveShadows(true);
   material->SetLightingEnabled(true);
 
-  const char *env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env = std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
 
   // path to look for CoM material texture
   std::string com_material_texture_path = common::joinPaths(
       resourcePath, "media", "materials", "textures", "com.png");
   material = this->CreateMaterial("Default/CoM");
-  material->SetTexture(com_material_texture_path);
+  material->SetTexture(com_material_texture_path, nullptr);
   material->SetTransparency(0);
   material->SetCastShadows(false);
   material->SetReceiveShadows(true);

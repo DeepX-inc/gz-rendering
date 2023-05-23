@@ -15,23 +15,26 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/Material.hh"
+#include "gz/rendering/Material.hh"
 
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderPass.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderPass.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/Utils.hh"
 
-namespace ignition
+#include <string.h>
+
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 //
 /// \brief Listener for changing ogre compositor pass properties
 class Ogre2RenderTargetCompositorListener :
@@ -55,12 +58,12 @@ class Ogre2RenderTargetCompositorListener :
     {
       Ogre::CompositorPassScene *scenePass =
           static_cast<Ogre::CompositorPassScene *>(_pass);
-      IGN_ASSERT(scenePass != nullptr, "Unable to get scene pass");
+      GZ_ASSERT(scenePass != nullptr, "Unable to get scene pass");
       Ogre::Viewport *vp = scenePass->getCamera()->getLastViewport();
       if (vp == nullptr) return;
       // make sure we do not alter the reserved visibility flags
-      uint32_t f = this->ogreRenderTarget->VisibilityMask() |
-          ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS;
+      uint32_t f = this->ogreRenderTarget->VisibilityMask() &
+                   Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS;
       // apply the new visibility mask
       uint32_t flags = f & vp->getVisibilityMask();
       vp->_setVisibilityMask(flags, vp->getLightVisibilityMask());
@@ -75,7 +78,7 @@ class Ogre2RenderTargetCompositorListener :
 }
 
 /// \brief Private data class for Ogre2RenderTarget
-class ignition::rendering::Ogre2RenderTargetPrivate
+class gz::rendering::Ogre2RenderTargetPrivate
 {
   /// \brief Listener for chaning compositor pass properties
   public: Ogre2RenderTargetCompositorListener *rtListener = nullptr;
@@ -101,7 +104,7 @@ class ignition::rendering::Ogre2RenderTargetPrivate
   public: Ogre::TextureGpu *ogreTexture[2] = {nullptr, nullptr};
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -117,11 +120,11 @@ Ogre2RenderTarget::Ogre2RenderTarget()
 //////////////////////////////////////////////////
 Ogre2RenderTarget::~Ogre2RenderTarget()
 {
-  if (this->dataPtr->rtListener)
-  {
-    delete this->dataPtr->rtListener;
-    this->dataPtr->rtListener = nullptr;
-  }
+  GZ_ASSERT(this->dataPtr->rtListener == nullptr &&
+            this->dataPtr->ogreTexture[0] == nullptr &&
+            this->dataPtr->ogreTexture[1] == nullptr &&
+            this->ogreCompositorWorkspace == nullptr,
+            "Ogre2RenderTarget::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -356,11 +359,22 @@ void Ogre2RenderTarget::Copy(Image &_image) const
 
   if (_image.Width() != this->width || _image.Height() != this->height)
   {
-    ignerr << "Invalid image dimensions" << std::endl;
+    gzerr << "Invalid image dimensions" << std::endl;
     return;
   }
 
-  Ogre::PixelFormatGpu dstOgrePf = Ogre2Conversions::Convert(_image.Format());
+  Ogre::PixelFormatGpu dstOgrePf;
+  if ((_image.Format() == PF_BAYER_RGGB8) ||
+      (_image.Format() == PF_BAYER_BGGR8) ||
+      (_image.Format() == PF_BAYER_GBRG8) ||
+      (_image.Format() == PF_BAYER_GRBG8))
+  {
+    dstOgrePf = Ogre2Conversions::Convert(PF_R8G8B8);
+  }
+  else
+  {
+    dstOgrePf = Ogre2Conversions::Convert(_image.Format());
+  }
   Ogre::TextureGpu *texture = this->RenderTarget();
 
   if (Ogre::PixelFormatGpuUtils::isSRgb(dstOgrePf) !=
@@ -376,19 +390,35 @@ void Ogre2RenderTarget::Copy(Image &_image) const
   }
 
   Ogre::TextureBox dstBox(
-    texture->getWidth(), texture->getHeight(),
+    texture->getInternalWidth(), texture->getInternalHeight(),
     texture->getDepth(), texture->getNumSlices(),
     static_cast<uint32_t>(
       Ogre::PixelFormatGpuUtils::getBytesPerPixel(dstOgrePf)),
     static_cast<uint32_t>(Ogre::PixelFormatGpuUtils::getSizeBytes(
-      texture->getWidth(), 1u, 1u, 1u, dstOgrePf, 1u)),
+      texture->getInternalWidth(), 1u, 1u, 1u, dstOgrePf, 1u)),
     static_cast<uint32_t>(Ogre::PixelFormatGpuUtils::getSizeBytes(
-      texture->getWidth(), texture->getHeight(), 1u, 1u,
+      texture->getInternalWidth(), texture->getInternalHeight(), 1u, 1u,
       dstOgrePf, 1u)));
-  dstBox.data = _image.Data();
 
-  Ogre::Image2::copyContentsToMemory(texture, texture->getEmptyBox(0u), dstBox,
-                                     dstOgrePf);
+  if ((_image.Format() == PF_BAYER_RGGB8) ||
+      (_image.Format() == PF_BAYER_BGGR8) ||
+      (_image.Format() == PF_BAYER_GBRG8) ||
+      (_image.Format() == PF_BAYER_GRBG8))
+  {
+    // create tmp color image to get data from gpu
+    Image colorImage(this->width, this->height, PF_R8G8B8);
+    dstBox.data = colorImage.Data();
+    Ogre::Image2::copyContentsToMemory(
+        texture, texture->getEmptyBox(0u), dstBox, dstOgrePf);
+    // convert color image to bayer image
+    _image = gz::rendering::convertRGBToBayer(colorImage, _image.Format());
+  }
+  else
+  {
+    dstBox.data = _image.Data();
+    Ogre::Image2::copyContentsToMemory(
+        texture, texture->getEmptyBox(0u), dstBox, dstOgrePf);
+  }
 }
 
 //////////////////////////////////////////////////
@@ -454,7 +484,6 @@ void Ogre2RenderTarget::PreRender()
   {
     this->material->PreRender();
   }
-
   this->UpdateRenderPassChain();
 }
 
@@ -550,6 +579,16 @@ unsigned int Ogre2RenderTarget::GLIdImpl() const
 }
 
 //////////////////////////////////////////////////
+void Ogre2RenderTarget::MetalIdImpl(void *_textureIdPtr) const
+{
+  if (!this->dataPtr->ogreTexture[0])
+    return;
+
+  this->dataPtr->ogreTexture[1]->
+      getCustomAttribute("msFinalTextureBuffer", _textureIdPtr);
+}
+
+//////////////////////////////////////////////////
 uint8_t Ogre2RenderTarget::TargetFSAA() const
 {
   // check if target fsaa is supported
@@ -572,9 +611,9 @@ uint8_t Ogre2RenderTarget::TargetFSAA() const
       }
       os << "]";
 
-      ignwarn << "Anti-aliasing level of '" << this->antiAliasing << "' "
+      gzwarn << "Anti-aliasing level of '" << this->antiAliasing << "' "
               << "is not supported; valid FSAA levels are: " << os.str()
-              << ". Setting to 0" << std::endl;
+              << ". Setting to 1" << std::endl;
       ogre2FSAAWarn = true;
     }
     targetFSAA = 0u;
@@ -643,7 +682,7 @@ void Ogre2RenderTarget::UpdateBackgroundMaterial()
       auto skyboxMat = matManager.getByName(this->dataPtr->kSkyboxMaterialName);
       if (!skyboxMat)
       {
-        ignerr << "Unable to find skybox material" << std::endl;
+        gzerr << "Unable to find skybox material" << std::endl;
         return;
       }
       mat = skyboxMat->clone(skyMatName);
@@ -671,6 +710,13 @@ void Ogre2RenderTarget::UpdateRenderPassChain()
       this->renderPassDirty,
       &this->dataPtr->ogreTexture,
       this->IsRenderWindow());
+
+  if (this->renderPassDirty)
+  {
+    // make sure to render the result after updating the render pass chain
+    for (auto &pass : this->renderPasses)
+      pass->PreRender();
+  }
 
   this->renderPassDirty = false;
 }
@@ -897,6 +943,12 @@ void Ogre2RenderTexture::BuildTarget()
 unsigned int Ogre2RenderTexture::GLId() const
 {
   return Ogre2RenderTarget::GLIdImpl();
+}
+
+//////////////////////////////////////////////////
+void Ogre2RenderTexture::MetalId(void *_textureIdPtr) const
+{
+  Ogre2RenderTarget::MetalIdImpl(_textureIdPtr);
 }
 
 //////////////////////////////////////////////////

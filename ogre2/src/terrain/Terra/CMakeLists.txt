@@ -8,7 +8,7 @@ file( GLOB_RECURSE TERRA_SOURCES
 
 add_library(${PROJECT_NAME} STATIC ${TERRA_SOURCES})
 
-if(IGN_ADD_fPIC_TO_LIBRARIES AND NOT _ign_add_library_INTERFACE)
+if(GZ_ADD_fPIC_TO_LIBRARIES AND NOT _gz_add_library_INTERFACE)
   target_compile_options(${PROJECT_NAME} PRIVATE -fPIC)
 endif()
 
@@ -38,4 +38,4 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE IgnOGRE2::IgnOGRE2)
+target_link_libraries(${PROJECT_NAME} PRIVATE GzOGRE2::GzOGRE2)

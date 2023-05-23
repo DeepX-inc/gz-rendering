@@ -23,37 +23,28 @@
   #include <windows.h>
 #endif
 
-#ifdef __APPLE__
-  #define GL_SILENCE_DEPRECATION
-  #include <OpenGL/gl.h>
-#else
-#ifndef _WIN32
-  #include <GL/gl.h>
-#endif
-#endif
-
 #include <math.h>
-#include <ignition/math/Helpers.hh>
+#include <gz/math/Helpers.hh>
 
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2DepthCamera.hh"
-#include "ignition/rendering/ogre2/Ogre2GaussianNoisePass.hh"
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2ParticleEmitter.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Sensor.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2DepthCamera.hh"
+#include "gz/rendering/ogre2/Ogre2GaussianNoisePass.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2ParticleEmitter.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Sensor.hh"
 
 #include "Ogre2ParticleNoiseListener.hh"
 
-namespace ignition
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 //
 /// \brief Gaussian noise render pass for depth cameras
 /// The class implementation is very similar to Ogre2GaussianNoisePass but
@@ -83,7 +74,7 @@ class Ogre2DepthGaussianNoisePass : public Ogre2GaussianNoisePass
 
 /// \internal
 /// \brief Private data for the Ogre2DepthCamera class
-class ignition::rendering::Ogre2DepthCameraPrivate
+class gz::rendering::Ogre2DepthCameraPrivate
 {
   /// \brief The depth buffer
   public: float *depthBuffer = nullptr;
@@ -95,10 +86,10 @@ class ignition::rendering::Ogre2DepthCameraPrivate
   public: float *pointCloudImage = nullptr;
 
   /// \brief maximum value used for data outside sensor range
-  public: float dataMaxVal = ignition::math::INF_D;
+  public: float dataMaxVal = gz::math::INF_D;
 
   /// \brief minimum value used for data outside sensor range
-  public: float dataMinVal = -ignition::math::INF_D;
+  public: float dataMinVal = -gz::math::INF_D;
 
   /// \brief 1st pass compositor workspace definition
   public: std::string ogreCompositorWorkspaceDef;
@@ -131,12 +122,12 @@ class ignition::rendering::Ogre2DepthCameraPrivate
   public: bool renderPassDirty = false;
 
   /// \brief Event used to signal rgb point cloud data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newRgbPointCloud;
 
   /// \brief Event used to signal depth data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newDepthFrame;
 
@@ -158,7 +149,7 @@ class ignition::rendering::Ogre2DepthCameraPrivate
   public: const std::string kShadowNodeName = "PbsMaterialsShadowNode";
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -173,9 +164,9 @@ void Ogre2DepthGaussianNoisePass::PreRender()
   if (!this->enabled)
     return;
 
-  Ogre::Vector3 offsets(ignition::math::Rand::DblUniform(0.0, 1.0),
-                        ignition::math::Rand::DblUniform(0.0, 1.0),
-                        ignition::math::Rand::DblUniform(0.0, 1.0));
+  Ogre::Vector3 offsets(math::Rand::DblUniform(0.0, 1.0),
+                        math::Rand::DblUniform(0.0, 1.0),
+                        math::Rand::DblUniform(0.0, 1.0));
 
   Ogre::Pass *pass = this->gaussianNoiseMat->getTechnique(0)->getPass(0);
   Ogre::GpuProgramParametersSharedPtr psParams =
@@ -211,7 +202,7 @@ void Ogre2DepthGaussianNoisePass::CreateRenderPass()
       Ogre::MaterialManager::getSingleton().getByName(matName);
   if (!ogreMat)
   {
-    ignerr << "Gaussian noise material not found: '" << matName << "'"
+    gzerr << "Gaussian noise material not found: '" << matName << "'"
            << std::endl;
     return;
   }
@@ -357,7 +348,7 @@ void Ogre2DepthCamera::Destroy()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -377,14 +368,14 @@ void Ogre2DepthCamera::CreateCamera()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
     return;
   }
 
   this->ogreCamera = ogreSceneManager->createCamera(this->name);
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
@@ -398,7 +389,6 @@ void Ogre2DepthCamera::CreateCamera()
   this->ogreCamera->setFixedYawAxis(false);
 
   // TODO(anyone): provide api access
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setRenderingDistance(100);
   this->ogreCamera->setProjectionType(Ogre::PT_PERSPECTIVE);
   this->ogreCamera->setCustomProjectionMatrix(false);
@@ -418,9 +408,12 @@ void Ogre2DepthCamera::CreateRenderTexture()
 void Ogre2DepthCamera::CreateDepthTexture()
 {
   // set aspect ratio and fov
-  double vfov;
-  vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) / this->AspectRatio());
-  this->ogreCamera->setFOVy(Ogre::Radian(this->LimitFOV(vfov)));
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov =
+    this->LimitFOV(2.0 * atan(tan(angle / 2.0) / aspectRatio));
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
 
   // Load depth material
   // The DepthCamera material is defined in script (depth_camera.material).
@@ -509,7 +502,7 @@ void Ogre2DepthCamera::CreateDepthTexture()
       auto skyboxMat = matManager.getByName(this->dataPtr->kSkyboxMaterialName);
       if (!skyboxMat)
       {
-        ignerr << "Unable to find skybox material" << std::endl;
+        gzerr << "Unable to find skybox material" << std::endl;
         return;
       }
       mat = skyboxMat->clone(skyMatName);
@@ -718,7 +711,7 @@ void Ogre2DepthCamera::CreateDepthTexture()
             static_cast<Ogre::CompositorPassSceneDef *>(
             colorTargetDef->addPass(Ogre::PASS_SCENE));
         passScene->mShadowNode = this->dataPtr->kShadowNodeName;
-        passScene->mVisibilityMask = IGN_VISIBILITY_ALL;
+        passScene->setVisibilityMask(GZ_VISIBILITY_ALL);
         passScene->mIncludeOverlays = false;
         passScene->mFirstRQ = 0u;
         passScene->mLastRQ = 2u;
@@ -755,7 +748,7 @@ void Ogre2DepthCamera::CreateDepthTexture()
         Ogre::CompositorPassSceneDef *passScene =
             static_cast<Ogre::CompositorPassSceneDef *>(
             colorTargetDef->addPass(Ogre::PASS_SCENE));
-        passScene->mVisibilityMask = IGN_VISIBILITY_ALL;
+        passScene->setVisibilityMask(GZ_VISIBILITY_ALL);
         // todo(anyone) PbsMaterialsShadowNode is hardcoded.
         // Although this may be just fine
         passScene->mShadowNode = this->dataPtr->kShadowNodeName;
@@ -777,8 +770,8 @@ void Ogre2DepthCamera::CreateDepthTexture()
         this->FarClipPlane(),
         this->FarClipPlane()));
       // depth texute does not contain particles
-      passScene->mVisibilityMask = IGN_VISIBILITY_ALL
-          & ~Ogre2ParticleEmitter::kParticleVisibilityFlags;
+      passScene->setVisibilityMask(
+        GZ_VISIBILITY_ALL & ~Ogre2ParticleEmitter::kParticleVisibilityFlags);
     }
 
     Ogre::CompositorTargetDef *particleTargetDef =
@@ -791,8 +784,8 @@ void Ogre2DepthCamera::CreateDepthTexture()
           particleTargetDef->addPass(Ogre::PASS_SCENE));
       passScene->setAllLoadActions(Ogre::LoadAction::Clear);
       passScene->setAllClearColours(Ogre::ColourValue::Black);
-      passScene->mVisibilityMask =
-          Ogre2ParticleEmitter::kParticleVisibilityFlags;
+      passScene->setVisibilityMask(
+        Ogre2ParticleEmitter::kParticleVisibilityFlags);
     }
 
     // rt0 target - converts depth to xyz
@@ -896,7 +889,7 @@ void Ogre2DepthCamera::CreateDepthTexture()
 
   if (!wsDef)
   {
-    ignerr << "Unable to add workspace definition [" << wsDefName << "] "
+    gzerr << "Unable to add workspace definition [" << wsDefName << "] "
            << " for " << this->Name();
   }
 
@@ -916,7 +909,7 @@ void Ogre2DepthCamera::CreateDepthTexture()
         this->ImageWidth(), this->ImageHeight());
       this->dataPtr->ogreDepthTexture[i]->setNumMipmaps(1u);
       this->dataPtr->ogreDepthTexture[i]->setPixelFormat(
-        Ogre::PFG_RGBA32_FLOAT);
+        Ogre::PFG_RGBA32_UINT);
 
       this->dataPtr->ogreDepthTexture[i]->scheduleTransitionTo(
         Ogre::GpuResidency::Resident);
@@ -973,16 +966,13 @@ void Ogre2DepthCamera::CreateWorkspaceInstance()
 //////////////////////////////////////////////////
 void Ogre2DepthCamera::Render()
 {
-  // GL_DEPTH_CLAMP was disabled in later version of ogre2.2
-  // however our shaders rely on clamped values so enable it for this sensor
-  auto engine = Ogre2RenderEngine::Instance();
-  std::string renderSystemName =
-      engine->OgreRoot()->getRenderSystem()->getFriendlyName();
-  bool useGL = renderSystemName.find("OpenGL") != std::string::npos;
-#ifndef _WIN32
-  if (useGL)
-    glEnable(GL_DEPTH_CLAMP);
-#endif
+  // Our shaders rely on clamped values so enable it for this sensor
+  //
+  // TODO(anyone): Matias N. Goldberg (dark_sylinc) insists this is a hack
+  // and something is wrong. We should not need depth clamp. Depth clamp is
+  // just masking a bug
+  const bool bOldDepthClamp = this->ogreCamera->getNeedsDepthClamp();
+  this->ogreCamera->_setNeedsDepthClamp(true);
 
   this->scene->StartRendering(this->ogreCamera);
 
@@ -998,10 +988,7 @@ void Ogre2DepthCamera::Render()
 
   this->scene->FlushGpuCommandsAndStartNewFrame(1u, false);
 
-#ifndef _WIN32
-  if (useGL)
-    glDisable(GL_DEPTH_CLAMP);
-#endif
+  this->ogreCamera->_setNeedsDepthClamp(bOldDepthClamp);
 }
 
 //////////////////////////////////////////////////
@@ -1130,34 +1117,34 @@ void Ogre2DepthCamera::PostRender()
     //     unsigned int r = *rgba >> 24 & 0xFF;
     //     unsigned int g = *rgba >> 16 & 0xFF;
     //     unsigned int b = *rgba >> 8 & 0xFF;
-    //     igndbg << "[" << r << "]" << "[" << g << "]" << "[" << b << "],";
+    //     gzdbg << "[" << r << "]" << "[" << g << "]" << "[" << b << "],";
     //   }
-    //   igndbg << std::endl;
+    //   gzdbg << std::endl;
     // }
 
     // Uncomment to debug xyz output
-    // igndbg << "wxh: " << width << " x " << height << std::endl;
+    // gzdbg << "wxh: " << width << " x " << height << std::endl;
     // for (unsigned int i = 0; i < height; ++i)
     // {
     //   for (unsigned int j = 0; j < width; ++j)
     //   {
-    //     igndbg << "[" << this->dataPtr->pointCloudImage[i*width*4+j*4] << "]"
+    //     gzdbg << "[" << this->dataPtr->pointCloudImage[i*width*4+j*4] << "]"
     //       << "[" << this->dataPtr->pointCloudImage[i*width*4+j*4+1] << "]"
     //       << "[" << this->dataPtr->pointCloudImage[i*width*4+j*4+2] << "],";
     //   }
-    //   igndbg << std::endl;
+    //   gzdbg << std::endl;
     // }
   }
 
   // Uncomment to debug depth output
-  // igndbg << "wxh: " << width << " x " << height << std::endl;
+  // gzdbg << "wxh: " << width << " x " << height << std::endl;
   // for (unsigned int i = 0; i < height; ++i)
   // {
   //   for (unsigned int j = 0; j < width; ++j)
   //   {
-  //     igndbg << "[" << this->dataPtr->depthImage[i*width + j] << "]";
+  //     gzdbg << "[" << this->dataPtr->depthImage[i*width + j] << "]";
   //   }
-  //   igndbg << std::endl;
+  //   gzdbg << std::endl;
   // }
 }
 
@@ -1168,7 +1155,7 @@ const float *Ogre2DepthCamera::DepthData() const
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr Ogre2DepthCamera::ConnectNewDepthFrame(
+common::ConnectionPtr Ogre2DepthCamera::ConnectNewDepthFrame(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {
@@ -1176,7 +1163,7 @@ ignition::common::ConnectionPtr Ogre2DepthCamera::ConnectNewDepthFrame(
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr Ogre2DepthCamera::ConnectNewRgbPointCloud(
+common::ConnectionPtr Ogre2DepthCamera::ConnectNewRgbPointCloud(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {
@@ -1192,7 +1179,7 @@ RenderTargetPtr Ogre2DepthCamera::RenderTarget() const
 //////////////////////////////////////////////////
 double Ogre2DepthCamera::LimitFOV(const double _fov)
 {
-  return std::min(std::max(0.001, _fov), IGN_PI * 0.999);
+  return std::min(std::max(0.001, _fov), GZ_PI * 0.999);
 }
 
 //////////////////////////////////////////////////
@@ -1260,7 +1247,7 @@ void Ogre2DepthCamera::AddRenderPass(const RenderPassPtr &_pass)
       std::dynamic_pointer_cast<Ogre2GaussianNoisePass>(_pass);
   if (!pass)
   {
-    ignerr << "Depth camera currently only supports a gaussian noise pass"
+    gzerr << "Depth camera currently only supports a gaussian noise pass"
            << std::endl;
     return;
   }
@@ -1273,4 +1260,10 @@ void Ogre2DepthCamera::AddRenderPass(const RenderPassPtr &_pass)
 
   this->dataPtr->renderPasses.push_back(depthNoisePass);
   this->dataPtr->renderPassDirty = true;
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *Ogre2DepthCamera::OgreCamera() const
+{
+  return this->ogreCamera;
 }

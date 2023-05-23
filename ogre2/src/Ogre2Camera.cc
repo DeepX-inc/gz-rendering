@@ -15,12 +15,12 @@
  *
  */
 
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2SelectionBuffer.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2SelectionBuffer.hh"
+#include "gz/rendering/Utils.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -33,11 +33,11 @@
 #endif
 
 /// \brief Private data for the Ogre2Camera class
-class ignition::rendering::Ogre2CameraPrivate
+class gz::rendering::Ogre2CameraPrivate
 {
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -58,11 +58,13 @@ void Ogre2Camera::Destroy()
   if (!this->ogreCamera || !this->Scene()->IsInitialized())
     return;
 
+  this->DestroyRenderTexture();
+
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   if (ogreSceneManager->findCameraNoThrow(this->name) != nullptr)
   {
@@ -74,31 +76,27 @@ void Ogre2Camera::Destroy()
 //////////////////////////////////////////////////
 math::Angle Ogre2Camera::HFOV() const
 {
-  double vfov = this->ogreCamera->getFOVy().valueRadians();
-  double hFOV = 2.0 * atan(tan(vfov / 2.0) * this->AspectRatio());
-  return math::Angle(hFOV);
+  return BaseCamera::HFOV();
 }
 
 //////////////////////////////////////////////////
 void Ogre2Camera::SetHFOV(const math::Angle &_angle)
 {
   BaseCamera::SetHFOV(_angle);
-  double angle = _angle.Radian();
-  double vfov = 2.0 * atan(tan(angle / 2.0) / this->AspectRatio());
-  this->ogreCamera->setFOVy(Ogre::Radian(vfov));
+  this->SyncOgreCameraAspectRatio();
 }
 
 //////////////////////////////////////////////////
 double Ogre2Camera::AspectRatio() const
 {
-  return this->ogreCamera->getAspectRatio();
+  return BaseCamera::AspectRatio();
 }
 
 //////////////////////////////////////////////////
 void Ogre2Camera::SetAspectRatio(const double _ratio)
 {
   BaseCamera::SetAspectRatio(_ratio);
-  return this->ogreCamera->setAspectRatio(_ratio);
+  this->SyncOgreCameraAspectRatio();
 }
 
 //////////////////////////////////////////////////
@@ -166,6 +164,16 @@ void Ogre2Camera::Init()
 }
 
 //////////////////////////////////////////////////
+void Ogre2Camera::SyncOgreCameraAspectRatio()
+{
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov = 2.0 * atan(tan(angle / 2.0) / aspectRatio);
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
+}
+
+//////////////////////////////////////////////////
 void Ogre2Camera::CreateCamera()
 {
   // create ogre camera object
@@ -182,7 +190,6 @@ void Ogre2Camera::CreateCamera()
   this->ogreCamera->setFixedYawAxis(false);
 
   // TODO(anyone): provide api access
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setProjectionType(Ogre::PT_PERSPECTIVE);
   this->ogreCamera->setCustomProjectionMatrix(false);
 }
@@ -190,6 +197,7 @@ void Ogre2Camera::CreateCamera()
 //////////////////////////////////////////////////
 void Ogre2Camera::CreateRenderTexture()
 {
+  this->DestroyRenderTexture();
   RenderTexturePtr base = this->scene->CreateRenderTexture();
   this->renderTexture = std::dynamic_pointer_cast<Ogre2RenderTexture>(base);
   this->renderTexture->SetCamera(this->ogreCamera);
@@ -200,6 +208,16 @@ void Ogre2Camera::CreateRenderTexture()
   this->renderTexture->SetVisibilityMask(this->visibilityMask);
 }
 
+
+//////////////////////////////////////////////////
+void Ogre2Camera::DestroyRenderTexture()
+{
+  if (this->renderTexture)
+  {
+    dynamic_cast<Ogre2RenderTarget *>(this->renderTexture.get())->Destroy();
+    this->renderTexture.reset();
+  }
+}
 //////////////////////////////////////////////////
 unsigned int Ogre2Camera::RenderTextureGLId() const
 {
@@ -213,6 +231,21 @@ unsigned int Ogre2Camera::RenderTextureGLId() const
     return 0u;
 
   return rt->GLId();
+}
+
+//////////////////////////////////////////////////
+void Ogre2Camera::RenderTextureMetalId(void *_textureIdPtr) const
+{
+  if (!this->renderTexture)
+    return;
+
+  Ogre2RenderTexturePtr rt =
+      std::dynamic_pointer_cast<Ogre2RenderTexture>(this->renderTexture);
+
+  if (!rt)
+    return;
+
+  rt->MetalId(_textureIdPtr);
 }
 
 //////////////////////////////////////////////////
@@ -248,7 +281,7 @@ Ogre2SelectionBuffer *Ogre2Camera::SelectionBuffer() const
 }
 
 //////////////////////////////////////////////////
-VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
+VisualPtr Ogre2Camera::VisualAt(const math::Vector2i &_mousePos)
 {
   VisualPtr result;
 
@@ -268,7 +301,7 @@ VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
   }
 
   float ratio = screenScalingFactor();
-  ignition::math::Vector2i mousePos(
+  math::Vector2i mousePos(
       static_cast<int>(std::rint(ratio * _mousePos.X())),
       static_cast<int>(std::rint(ratio * _mousePos.Y())));
   Ogre::Item *ogreItem = this->selectionBuffer->OnSelectionClick(
@@ -287,7 +320,7 @@ VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
       }
       catch(Ogre::Exception &e)
       {
-        ignerr << "Ogre Error:" << e.getFullDescription() << "\n";
+        gzerr << "Ogre Error:" << e.getFullDescription() << "\n";
       }
     }
   }
@@ -298,8 +331,17 @@ VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
 //////////////////////////////////////////////////
 RenderWindowPtr Ogre2Camera::CreateRenderWindow()
 {
-  // TODO(anyone)
-  return RenderWindowPtr();
+  RenderWindowPtr base = this->scene->CreateRenderWindow();
+  Ogre2RenderWindowPtr renderWindow =
+      std::dynamic_pointer_cast<Ogre2RenderWindow>(base);
+  renderWindow->SetWidth(this->ImageWidth());
+  renderWindow->SetHeight(this->ImageHeight());
+  renderWindow->SetDevicePixelRatio(1);
+  renderWindow->SetCamera(this->ogreCamera);
+  renderWindow->SetBackgroundColor(this->scene->BackgroundColor());
+
+  this->renderTexture = renderWindow;
+  return base;
 }
 
 //////////////////////////////////////////////////
@@ -355,15 +397,23 @@ void Ogre2Camera::SetFarClipPlane(const double _far)
 }
 
 //////////////////////////////////////////////////
-Ogre::Camera *Ogre2Camera::OgreCamera() const
-{
-  return ogreCamera;
-}
-
-//////////////////////////////////////////////////
 void Ogre2Camera::SetVisibilityMask(uint32_t _mask)
 {
+  if (_mask & ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS)
+  {
+    gzwarn << "Ogre2Camera::SetVisibilityMask: Mask bits " << std::hex
+           << ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS << std::dec
+           << " are set but will be ignored as they conflict with the "
+           << "reserved bits used internally by the ogre2 backend."
+           << std::endl;
+  }
   BaseSensor::SetVisibilityMask(_mask);
   if (this->renderTexture)
     this->renderTexture->SetVisibilityMask(_mask);
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *Ogre2Camera::OgreCamera() const
+{
+  return this->ogreCamera;
 }

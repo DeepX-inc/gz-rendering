@@ -17,25 +17,25 @@
 
 #include <string>
 
-#include <ignition/common/Console.hh>
-#include <ignition/math/Color.hh>
+#include <gz/common/Console.hh>
+#include <gz/math/Color.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2ParticleEmitter.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2SegmentationCamera.hh"
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2ParticleEmitter.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2SegmentationCamera.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/Utils.hh"
 
 #include "Ogre2SegmentationMaterialSwitcher.hh"
 
 /// \brief Private data for the Ogre2SegmentationCamera class
-class ignition::rendering::Ogre2SegmentationCameraPrivate
+class gz::rendering::Ogre2SegmentationCameraPrivate
 {
   /// \brief buffer to store render texture data & to be sent to listeners
   public: uint8_t *buffer {nullptr};
@@ -61,7 +61,7 @@ class ignition::rendering::Ogre2SegmentationCameraPrivate
   /// \param[in] _height Height of the image
   /// \param[in] _channels Number of channels
   /// \param[in] _format Image Format
-  public: ignition::common::EventT<void(const uint8_t *_data,
+  public: gz::common::EventT<void(const uint8_t *_data,
     unsigned int _width, unsigned int _height, unsigned int _channels,
     const std::string &_format)> newSegmentationFrame;
 
@@ -71,7 +71,7 @@ class ignition::rendering::Ogre2SegmentationCameraPrivate
           materialSwitcher {nullptr};
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /////////////////////////////////////////////////
@@ -141,7 +141,7 @@ void Ogre2SegmentationCamera::Destroy()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -168,26 +168,25 @@ void Ogre2SegmentationCamera::CreateCamera()
   auto ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
     return;
   }
 
   this->ogreCamera = ogreSceneManager->createCamera(this->Name());
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
   this->ogreCamera->detachFromParent();
   this->ogreNode->attachObject(this->ogreCamera);
 
-  // rotate to ignition gazebo coord.
+  // rotate to Gazebo Sim coord.
   this->ogreCamera->yaw(Ogre::Degree(-90));
   this->ogreCamera->roll(Ogre::Degree(-90));
   this->ogreCamera->setFixedYawAxis(false);
 
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setRenderingDistance(100);
   this->ogreCamera->setProjectionType(Ogre::ProjectionType::PT_PERSPECTIVE);
   this->ogreCamera->setCustomProjectionMatrix(false);
@@ -199,10 +198,11 @@ void Ogre2SegmentationCamera::CreateSegmentationTexture()
   // Camera Parameters
   this->ogreCamera->setNearClipDistance(this->NearClipPlane());
   this->ogreCamera->setFarClipDistance(this->FarClipPlane());
-  this->ogreCamera->setAspectRatio(this->AspectRatio());
-  double vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) /
-    this->AspectRatio());
-  this->ogreCamera->setFOVy(Ogre::Radian(vfov));
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov = 2.0 * atan(tan(angle / 2.0) / aspectRatio);
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
 
   auto engine = Ogre2RenderEngine::Instance();
   auto ogreRoot = engine->OgreRoot();
@@ -298,7 +298,7 @@ void Ogre2SegmentationCamera::PostRender()
 }
 
 /////////////////////////////////////////////////
-ignition::common::ConnectionPtr
+gz::common::ConnectionPtr
   Ogre2SegmentationCamera::ConnectNewSegmentationFrame(
   std::function<void(const uint8_t *, unsigned int, unsigned int,
   unsigned int, const std::string &)>  _subscriber)
@@ -310,7 +310,7 @@ ignition::common::ConnectionPtr
 void Ogre2SegmentationCamera::Render()
 {
   // update the compositors
-  this->scene->StartRendering(nullptr);
+  this->scene->StartRendering(this->ogreCamera);
 
   this->dataPtr->ogreCompositorWorkspace->_validateFinalTarget();
   this->dataPtr->ogreCompositorWorkspace->_beginUpdate(false);
@@ -413,4 +413,10 @@ void Ogre2SegmentationCamera::LabelMapFromColoredBuffer(
       }
     }
   }
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *Ogre2SegmentationCamera::OgreCamera() const
+{
+  return this->ogreCamera;
 }

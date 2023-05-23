@@ -16,17 +16,13 @@
  */
 
 
-#include "ignition/rendering/LidarVisual.hh"
+#include "gz/rendering/LidarVisual.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-LidarVisual::LidarVisual()
-{
-}
+LidarVisual::LidarVisual() = default;
 
 //////////////////////////////////////////////////
-LidarVisual::~LidarVisual()
-{
-}
+LidarVisual::~LidarVisual() = default;

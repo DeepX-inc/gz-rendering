@@ -3,25 +3,26 @@ cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
 #============================================================================
 # Initialize the project
 #============================================================================
-project(ignition-rendering6 VERSION 6.5.1)
+project(gz-rendering7 VERSION 7.4.0)
 
 #============================================================================
-# Find ignition-cmake
+# Find gz-cmake
 #============================================================================
-# If you get an error at this line, you need to install ignition-cmake
-find_package(ignition-cmake2 2.14.0 REQUIRED)
-set(IGN_CMAKE_VER ${ignition-cmake2_VERSION_MAJOR})
+# If you get an error at this line, you need to install gz-cmake
+find_package(gz-cmake3 REQUIRED)
+set(GZ_CMAKE_VER ${gz-cmake3_VERSION_MAJOR})
 
 #============================================================================
 # Set up the project
 #============================================================================
-ign_configure_project(VERSION_SUFFIX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+gz_configure_project(VERSION_SUFFIX)
 
 #============================================================================
 # Set project-specific options
 #============================================================================
-
-set(CMAKE_CXX_STANDARD 14)
 option(USE_UNOFFICIAL_OGRE_VERSIONS "Accept unsupported Ogre versions in the build" OFF)
 
 #============================================================================
@@ -29,24 +30,29 @@ option(USE_UNOFFICIAL_OGRE_VERSIONS "Accept unsupported Ogre versions in the bui
 #============================================================================
 
 #--------------------------------------
-# Find ignition-math
-ign_find_package(ignition-math6 REQUIRED COMPONENTS eigen3 VERSION 6.9)
-set(IGN_MATH_VER ${ignition-math6_VERSION_MAJOR})
+# Find gz-math
+gz_find_package(gz-math7 REQUIRED COMPONENTS eigen3)
+set(GZ_MATH_VER ${gz-math7_VERSION_MAJOR})
 
 #--------------------------------------
-# Find ignition-common
-ign_find_package(ignition-common4 REQUIRED
-  COMPONENTS graphics events)
-set(IGN_COMMON_VER ${ignition-common4_VERSION_MAJOR})
+# Find gz-common
+gz_find_package(gz-common5 REQUIRED
+  COMPONENTS graphics events geospatial)
+set(GZ_COMMON_VER ${gz-common5_VERSION_MAJOR})
 
 #--------------------------------------
-# Find ignition-plugin
-ign_find_package(ignition-plugin1 REQUIRED COMPONENTS all)
-set(IGN_PLUGIN_VER ${ignition-plugin1_VERSION_MAJOR})
+# Find gz-plugin
+gz_find_package(gz-plugin2 REQUIRED COMPONENTS all)
+set(GZ_PLUGIN_VER ${gz-plugin2_VERSION_MAJOR})
+
+#--------------------------------------
+# Find gz-utils
+gz_find_package(gz-utils2 REQUIRED)
+set(GZ_UTILS_VER ${gz-utils2_VERSION_MAJOR})
 
 #--------------------------------------
 # Find FreeImage
-ign_find_package(FreeImage VERSION 3.9
+gz_find_package(FreeImage VERSION 3.9
   REQUIRED_BY optix
   PRIVATE_FOR optix)
 
@@ -57,9 +63,17 @@ if ((NOT ${CMAKE_VERSION} VERSION_LESS 3.11) AND (NOT OpenGL_GL_PREFERENCE))
   set(OpenGL_GL_PREFERENCE "GLVND")
 endif()
 
-ign_find_package(OpenGL
-  REQUIRED_BY ogre ogre2
-  PKGCONFIG gl)
+if (APPLE)
+  gz_find_package(OpenGL
+    REQUIRED_BY ogre ogre2
+    PKGCONFIG gl)
+else()
+  gz_find_package(OpenGL REQUIRED
+    COMPONENTS OpenGL
+    OPTIONAL_COMPONENTS EGL
+    REQUIRED_BY ogre ogre2
+    PKGCONFIG gl)
+endif()
 
 if (OpenGL_FOUND)
   set(HAVE_OPENGL TRUE)
@@ -67,19 +81,19 @@ endif()
 
 #--------------------------------------
 # Find OGRE
-list(APPEND ign_ogre_components "RTShaderSystem" "Terrain" "Overlay" "Paging")
+list(APPEND gz_ogre_components "RTShaderSystem" "Terrain" "Overlay" "Paging")
 
-ign_find_package(IgnOGRE VERSION 1.9.0
-  COMPONENTS ${ign_ogre_components}
+gz_find_package(GzOGRE VERSION 1.9.0
+  COMPONENTS ${gz_ogre_components}
   REQUIRED_BY ogre
   PRIVATE_FOR ogre)
 
 # Ogre versions greater than 1.9.x are not officialy supported.
 # Display a warning for the users on this setup unless they provide
 # USE_UNOFFICIAL_OGRE_VERSIONS flag
-if (OGRE_FOUND AND NOT USE_UNOFFICIAL_OGRE_VERSIONS)
-  if (${OGRE_VERSION} VERSION_GREATER_EQUAL 1.10.0)
-    IGN_BUILD_WARNING("Ogre 1.x versions greater than 1.9 are not officially supported."
+if (NOT USE_UNOFFICIAL_OGRE_VERSIONS)
+  if (OGRE_VERSION VERSION_GREATER_EQUAL 1.10.0)
+    GZ_BUILD_WARNING("Ogre 1.x versions greater than 1.9 are not officially supported."
                       "The software might compile and even work but support from upstream"
                       "could be reduced to accepting patches for newer versions")
   endif()
@@ -97,16 +111,16 @@ endif()
 
 #--------------------------------------
 # Find OGRE2: first try to find OGRE2 built with PlanarReflections support and
-# fallback to look for OGRE2 without it. Both seems to works for ign-rendering.
-# See https://github.com/ignitionrobotics/ign-rendering/issues/597
-ign_find_package(IgnOGRE2 VERSION 2.2.0
+# fallback to look for OGRE2 without it. Both seems to works for gz-rendering.
+# See https://github.com/gazebosim/gz-rendering/issues/597
+gz_find_package(GzOGRE2 VERSION 2.3.1
     COMPONENTS HlmsPbs HlmsUnlit Overlay PlanarReflections
     PRIVATE_FOR ogre2
     QUIET)
 
 if ("${OGRE2-PlanarReflections}" STREQUAL "OGRE2-PlanarReflections-NOTFOUND")
   message(STATUS "PlanarReflections component was not found. Try looking without it:")
-  ign_find_package(IgnOGRE2 VERSION 2.2.0
+  gz_find_package(GzOGRE2 VERSION 2.3.1
     COMPONENTS HlmsPbs HlmsUnlit Overlay
     REQUIRED_BY ogre2
     PRIVATE_FOR ogre2)
@@ -117,9 +131,12 @@ if (OGRE2_FOUND)
 endif()
 
 # Plugin install dirs
-set(IGNITION_RENDERING_ENGINE_INSTALL_DIR
-  ${CMAKE_INSTALL_PREFIX}/${IGN_LIB_INSTALL_DIR}/ign-${GZ_DESIGNATION}-${PROJECT_VERSION_MAJOR}/engine-plugins
+set(GZ_RENDERING_ENGINE_RELATIVE_INSTALL_DIR
+  ${GZ_LIB_INSTALL_DIR}/gz-${GZ_DESIGNATION}-${PROJECT_VERSION_MAJOR}/engine-plugins
 )
+set(GZ_RENDERING_ENGINE_INSTALL_DIR
+  ${CMAKE_INSTALL_PREFIX}/${GZ_RENDERING_ENGINE_RELATIVE_INSTALL_DIR})
+
 
 #--------------------------------------
 # Find dependencies that we ignore for Visual Studio
@@ -130,7 +147,7 @@ if(NOT MSVC)
 
   #--------------------------------------
   # Find OptiX
-  ign_find_package(OptiX VERSION 3.8.0
+  gz_find_package(OptiX VERSION 3.8.0
       REQUIRED_BY optix
       PRIVATE_FOR optix)
 
@@ -142,12 +159,13 @@ endif()
 #####################################
 # Define compile-time default variables
 if(MSVC)
-  set(IGN_RENDERING_PLUGIN_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
+  set(GZ_RENDERING_PLUGIN_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
 else()
-  set(IGN_RENDERING_PLUGIN_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+  set(GZ_RENDERING_PLUGIN_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 endif()
 
-set(IGN_RENDERING_RESOURCE_PATH ${CMAKE_INSTALL_PREFIX}/${IGN_DATA_INSTALL_DIR})
+set(GZ_RENDERING_RELATIVE_RESOURCE_PATH ${GZ_DATA_INSTALL_DIR})
+set(GZ_RENDERING_RESOURCE_PATH ${CMAKE_INSTALL_PREFIX}/${GZ_RENDERING_RELATIVE_RESOURCE_PATH})
 
 #============================================================================
 # Configure the build
@@ -167,19 +185,19 @@ endif()
 configure_file("${PROJECT_SOURCE_DIR}/cppcheck.suppress.in"
                ${PROJECT_BINARY_DIR}/cppcheck.suppress)
 
-ign_configure_build(QUIT_IF_BUILD_ERRORS
+gz_configure_build(QUIT_IF_BUILD_ERRORS
     COMPONENTS ${RENDERING_COMPONENTS})
 
 if (HAVE_OGRE2)
-  # Must be done after ign_configure_build or else Terra
-  # won't see IGN_ADD_fPIC_TO_LIBRARIES
+  # Must be done after gz_configure_build or else Terra
+  # won't see GZ_ADD_fPIC_TO_LIBRARIES
   add_subdirectory(ogre2/src/terrain/Terra)
 endif()
 
 #============================================================================
 # Create package information
 #============================================================================
-ign_create_packages()
+gz_create_packages()
 
 #============================================================================
 # Configure documentation
@@ -187,13 +205,13 @@ ign_create_packages()
 configure_file(${CMAKE_SOURCE_DIR}/api.md.in ${CMAKE_BINARY_DIR}/api.md)
 configure_file(${CMAKE_SOURCE_DIR}/tutorials.md.in ${CMAKE_BINARY_DIR}/tutorials.md)
 
-ign_create_docs(
+gz_create_docs(
   API_MAINPAGE_MD "${CMAKE_BINARY_DIR}/api.md"
   TUTORIALS_MAINPAGE_MD "${CMAKE_BINARY_DIR}/tutorials.md"
   IMAGE_PATH_DIRS "${CMAKE_SOURCE_DIR}/tutorials/img"
   TAGFILES
-    "${IGNITION-COMMON_DOXYGEN_TAGFILE} = ${IGNITION-COMMON_API_URL}"
-    "${IGNITION-MATH_DOXYGEN_TAGFILE} = ${IGNITION-MATH_API_URL}"
+    "${GZ-COMMON_DOXYGEN_TAGFILE} = ${GZ-COMMON_API_URL}"
+    "${GZ-MATH_DOXYGEN_TAGFILE} = ${GZ-MATH_API_URL}"
 )
 
 file(COPY ${CMAKE_SOURCE_DIR}/tutorials/img/ DESTINATION ${CMAKE_BINARY_DIR}/doxygen/html/img/)

@@ -16,17 +16,17 @@
  */
 
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/RenderPassSystem.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreGaussianNoisePass.hh"
+#include "gz/rendering/RenderPassSystem.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreGaussianNoisePass.hh"
 
-namespace ignition
+namespace gz
 {
   namespace rendering
   {
-    inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+    inline namespace GZ_RENDERING_VERSION_NAMESPACE {
     //
     // We'll create an instance of this class for each camera, to be used to
     // inject random values on each render call.
@@ -45,9 +45,9 @@ namespace ignition
                                                 Ogre::MaterialPtr &_mat)
       {
 #if OGRE_VERSION_LT_1_11_0
-        IGN_ASSERT(!_mat.isNull(), "Null OGRE material");
+        GZ_ASSERT(!_mat.isNull(), "Null OGRE material");
 #else
-        IGN_ASSERT(_mat, "Null OGRE material");
+        GZ_ASSERT(_mat, "Null OGRE material");
 #endif
         // modify material here (wont alter the base material!), called for
         // every drawn geometry instance (i.e. compositor render_quad)
@@ -55,23 +55,23 @@ namespace ignition
         // Sample three values within the range [0,1.0] and set them for use in
         // the fragment shader, which will interpret them as offsets from (0,0)
         // to use when computing pseudo-random values.
-        Ogre::Vector3 offsets(ignition::math::Rand::DblUniform(0.0, 1.0),
-                              ignition::math::Rand::DblUniform(0.0, 1.0),
-                              ignition::math::Rand::DblUniform(0.0, 1.0));
+        Ogre::Vector3 offsets(gz::math::Rand::DblUniform(0.0, 1.0),
+                              gz::math::Rand::DblUniform(0.0, 1.0),
+                              gz::math::Rand::DblUniform(0.0, 1.0));
         // These calls are setting parameters that are declared in two places:
         // 1. media/materials/scripts/gaussian_noise.material, in
         //    fragment_program GaussianNoiseFS
         // 2. media/materials/scripts/gaussian_noise_fs.glsl
         Ogre::Technique *technique = _mat->getTechnique(0);
-        IGN_ASSERT(technique, "Null OGRE material technique");
+        GZ_ASSERT(technique, "Null OGRE material technique");
         Ogre::Pass *pass = technique->getPass(_passId);
-        IGN_ASSERT(pass, "Null OGRE material pass");
+        GZ_ASSERT(pass, "Null OGRE material pass");
         Ogre::GpuProgramParametersSharedPtr params =
             pass->getFragmentProgramParameters();
 #if OGRE_VERSION_LT_1_11_0
-        IGN_ASSERT(!params.isNull(), "Null OGRE material GPU parameters");
+        GZ_ASSERT(!params.isNull(), "Null OGRE material GPU parameters");
 #else
-        IGN_ASSERT(params, "Null OGRE material GPU parameters");
+        GZ_ASSERT(params, "Null OGRE material GPU parameters");
 #endif
         params->setNamedConstant("offsets", offsets);
         params->setNamedConstant("mean", static_cast<Ogre::Real>(this->mean));
@@ -89,7 +89,7 @@ namespace ignition
   }
 }
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -116,13 +116,13 @@ void OgreGaussianNoisePass::CreateRenderPass()
 {
   if (!this->ogreCamera)
   {
-    ignerr << "No camera set for applying Gaussian Noise Pass" << std::endl;
+    gzerr << "No camera set for applying Gaussian Noise Pass" << std::endl;
     return;
   }
 
   if (this->gaussianNoiseInstance || this->gaussianNoiseCompositorListener)
   {
-    ignerr << "Gaussian Noise pass already created. " << std::endl;
+    gzerr << "Gaussian Noise pass already created. " << std::endl;
     return;
   }
 
@@ -158,4 +158,4 @@ void OgreGaussianNoisePass::Destroy()
   }
 }
 
-IGN_RENDERING_REGISTER_RENDER_PASS(OgreGaussianNoisePass, GaussianNoisePass)
+GZ_RENDERING_REGISTER_RENDER_PASS(OgreGaussianNoisePass, GaussianNoisePass)

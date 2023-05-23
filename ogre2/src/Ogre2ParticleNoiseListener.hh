@@ -14,14 +14,14 @@
  * limitations under the License.
  *
  */
-#ifndef IGNITION_RENDERING_OGRE2_OGRE2PARTICLENOISELISTENER_HH_
-#define IGNITION_RENDERING_OGRE2_OGRE2PARTICLENOISELISTENER_HH_
+#ifndef GZ_RENDERING_OGRE2_OGRE2PARTICLENOISELISTENER_HH_
+#define GZ_RENDERING_OGRE2_OGRE2PARTICLENOISELISTENER_HH_
 
-namespace ignition
+namespace gz
 {
   namespace rendering
   {
-    inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+    inline namespace GZ_RENDERING_VERSION_NAMESPACE {
     //
     /// \brief Helper class for updating particle noise params
     class Ogre2ParticleNoiseListener : public Ogre::Camera::Listener
@@ -38,6 +38,14 @@ namespace ignition
       /// \param[in] _cam Ogre render camara which is about to render.
       private: virtual void cameraPreRenderScene(
           Ogre::Camera *_cam) override;
+
+      /// \brief Setups the material with particle noise params
+      /// \param[in,out] _pass Ogre Pass to setup.
+      /// \param[in] _scene Scene.
+      /// \param[in] _cam Ogre camera.
+      public: static void SetupMaterial(Ogre::Pass *_pass,
+                                        Ogre2ScenePtr _scene,
+                                        Ogre::Camera *_cam);
 
       /// \brief Pointer to scene
       private: Ogre2ScenePtr scene;

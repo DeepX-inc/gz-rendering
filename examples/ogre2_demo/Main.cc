@@ -27,14 +27,14 @@
 #include <iostream>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/rendering.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/rendering.hh>
 
 #include "example_config.hh"
 #include "GlutWindow.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 
@@ -161,7 +161,7 @@ void buildScene(ScenePtr _scene)
 
   // create a backpack
   // backpack mesh is mirrored and requires texture addressing mode to be
-  // set to 'wrap', which is the default in ign-rendering-ogre2
+  // set to 'wrap', which is the default in gz-rendering-ogre2
   VisualPtr backpack = _scene->CreateVisual("backpack");
   backpack->SetLocalPosition(2.5, -1, 0);
   backpack->SetLocalRotation(0, 0, -1.57);
@@ -269,7 +269,7 @@ void buildScene(ScenePtr _scene)
   camera->SetImageHeight(600);
   camera->SetAntiAliasing(2);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   root->AddChild(camera);
 }
 

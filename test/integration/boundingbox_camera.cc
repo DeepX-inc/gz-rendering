@@ -17,41 +17,22 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
-#include <ignition/common/Event.hh>
+#include "CommonRenderingTest.hh"
 
-#include <ignition/math/Color.hh>
+#include <gz/common/Filesystem.hh>
+#include <gz/common/Event.hh>
 
-#include "test_config.h"  // NOLINT(build/include)
+#include <gz/math/Color.hh>
 
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
-#include "ignition/rendering/BoundingBoxCamera.hh"
+#include "gz/rendering/Scene.hh"
+#include "gz/rendering/BoundingBoxCamera.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-class BoundingBoxCameraTest: public testing::Test,
-  public testing::WithParamInterface<const char *>
+class BoundingBoxCameraTest: public CommonRenderingTest
 {
-  /// \brief Test 2d boxes (full boxes and visible boxes modes)
-  /// with a scene that contains overlaped / occluded boxes
-  public: void OccludedBoxes(const std::string &_renderEngine);
-
-  /// \brief Test 2d boxes with a scene with 2 boxes besides
-  public: void SimpleBoxes(const std::string &_renderEngine);
-
-  /// \brief Test 3d oriented boxes with a scene with single box
-  public: void Oriented3dBoxes(const std::string &_renderEngine);
-
-  // Documentation inherited
-  protected: void SetUp() override
-  {
-    ignition::common::Console::SetVerbosity(4);
-  }
 };
 
 /// \brief mutex for thread safety
@@ -155,28 +136,11 @@ void Build3dBoxScene(rendering::ScenePtr scene)
 }
 
 //////////////////////////////////////////////////
-void BoundingBoxCameraTest::SimpleBoxes(
-  const std::string &_renderEngine)
+TEST_F(BoundingBoxCameraTest, SimpleBoxes)
 {
-  // Not all engines are supported
-  if (_renderEngine.compare("optix") == 0 ||
-      _renderEngine.compare("ogre") == 0)
-  {
-    igndbg << "Engine '" << _renderEngine
-           << "' doesn't support bounding box cameras" << std::endl;
-    return;
-  }
+  CHECK_SUPPORTED_ENGINE("ogre2");
 
-  // Setup ign-rendering with an empty scene
-  auto *engine = ignition::rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    igndbg << "Engine '" << _renderEngine
-              << "' is not supported" << std::endl;
-    return;
-  }
-
-  ignition::rendering::ScenePtr scene = engine->CreateScene("scene");
+  gz::rendering::ScenePtr scene = engine->CreateScene("scene");
   ASSERT_NE(nullptr, scene);
   BuildSimpleScene(scene);
 
@@ -193,7 +157,7 @@ void BoundingBoxCameraTest::SimpleBoxes(
   camera->SetImageWidth(width);
   camera->SetImageHeight(height);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   camera->SetBoundingBoxType(BoundingBoxType::BBT_VISIBLEBOX2D);
 
   EXPECT_EQ(camera->ImageWidth(), width);
@@ -203,7 +167,7 @@ void BoundingBoxCameraTest::SimpleBoxes(
   scene->RootVisual()->AddChild(camera);
 
   // Set a callback on the  camera sensor to get a BoundingBox camera frame
-  ignition::common::ConnectionPtr connection =
+  gz::common::ConnectionPtr connection =
     camera->ConnectNewBoundingBoxes(
       std::bind(OnNewBoundingBoxes, std::placeholders::_1));
   EXPECT_NE(nullptr, connection);
@@ -235,35 +199,17 @@ void BoundingBoxCameraTest::SimpleBoxes(
 
   // Clean up
   engine->DestroyScene(scene);
-  ignition::rendering::unloadEngine(engine->Name());
 }
 
 //////////////////////////////////////////////////
-void BoundingBoxCameraTest::OccludedBoxes(
-  const std::string &_renderEngine)
+TEST_F(BoundingBoxCameraTest, OccludedBoxes)
 {
+  CHECK_SUPPORTED_ENGINE("ogre2");
+
   // accepted error with +/- in pixels in comparing the box coordinates
   int marginError = 2;
 
-  // Not all engines are supported
-  if (_renderEngine.compare("optix") == 0 ||
-      _renderEngine.compare("ogre") == 0)
-  {
-    igndbg << "Engine '" << _renderEngine
-           << "' doesn't support bounding box cameras" << std::endl;
-    return;
-  }
-
-  // Setup ign-rendering with an empty scene
-  auto *engine = ignition::rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    igndbg << "Engine '" << _renderEngine
-              << "' is not supported" << std::endl;
-    return;
-  }
-
-  ignition::rendering::ScenePtr scene = engine->CreateScene("scene");
+  gz::rendering::ScenePtr scene = engine->CreateScene("scene");
   ASSERT_NE(nullptr, scene);
   BuildScene(scene);
 
@@ -283,7 +229,7 @@ void BoundingBoxCameraTest::OccludedBoxes(
   camera->SetImageWidth(width);
   camera->SetImageHeight(height);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
 
   EXPECT_EQ(camera->ImageWidth(), width);
   EXPECT_EQ(camera->ImageHeight(), height);
@@ -292,7 +238,7 @@ void BoundingBoxCameraTest::OccludedBoxes(
   scene->RootVisual()->AddChild(camera);
 
   // Set a callback on the  camera sensor to get a BoundingBox camera frame
-  ignition::common::ConnectionPtr connection =
+  gz::common::ConnectionPtr connection =
     camera->ConnectNewBoundingBoxes(
       std::bind(OnNewBoundingBoxes, std::placeholders::_1));
   EXPECT_NE(nullptr, connection);
@@ -359,32 +305,14 @@ void BoundingBoxCameraTest::OccludedBoxes(
 
   // Clean up
   engine->DestroyScene(scene);
-  ignition::rendering::unloadEngine(engine->Name());
 }
 
 //////////////////////////////////////////////////
-void BoundingBoxCameraTest::Oriented3dBoxes(
-  const std::string &_renderEngine)
+TEST_F(BoundingBoxCameraTest, Oriented3dBoxes)
 {
-  // Not all engines are supported
-  if (_renderEngine.compare("optix") == 0 ||
-      _renderEngine.compare("ogre") == 0)
-  {
-    igndbg << "Engine '" << _renderEngine
-           << "' doesn't support bounding box cameras" << std::endl;
-    return;
-  }
+  CHECK_SUPPORTED_ENGINE("ogre2");
 
-  // Setup ign-rendering with an empty scene
-  auto *engine = ignition::rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    igndbg << "Engine '" << _renderEngine
-              << "' is not supported" << std::endl;
-    return;
-  }
-
-  ignition::rendering::ScenePtr scene = engine->CreateScene("scene");
+  gz::rendering::ScenePtr scene = engine->CreateScene("scene");
   ASSERT_NE(nullptr, scene);
   Build3dBoxScene(scene);
 
@@ -401,7 +329,7 @@ void BoundingBoxCameraTest::Oriented3dBoxes(
   camera->SetImageWidth(width);
   camera->SetImageHeight(height);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   camera->SetBoundingBoxType(BoundingBoxType::BBT_BOX3D);
 
   EXPECT_EQ(camera->ImageWidth(), width);
@@ -411,7 +339,7 @@ void BoundingBoxCameraTest::Oriented3dBoxes(
   scene->RootVisual()->AddChild(camera);
 
   // Set a callback on the  camera sensor to get a BoundingBox camera frame
-  ignition::common::ConnectionPtr connection =
+  gz::common::ConnectionPtr connection =
     camera->ConnectNewBoundingBoxes(
       std::bind(OnNewBoundingBoxes, std::placeholders::_1));
   EXPECT_NE(nullptr, connection);
@@ -440,30 +368,4 @@ void BoundingBoxCameraTest::Oriented3dBoxes(
 
   // Clean up
   engine->DestroyScene(scene);
-  ignition::rendering::unloadEngine(engine->Name());
-}
-
-TEST_P(BoundingBoxCameraTest, SimpleBoxes)
-{
-  SimpleBoxes(GetParam());
-}
-
-TEST_P(BoundingBoxCameraTest, OccludedBoxes)
-{
-  OccludedBoxes(GetParam());
-}
-
-TEST_P(BoundingBoxCameraTest, Oriented3dBoxes)
-{
-  Oriented3dBoxes(GetParam());
-}
-
-INSTANTIATE_TEST_CASE_P(BoundingBoxCamera, BoundingBoxCameraTest,
-    RENDER_ENGINE_VALUES, ignition::rendering::PrintToStringParam());
-
-//////////////////////////////////////////////////
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

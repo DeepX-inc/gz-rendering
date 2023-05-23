@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(ignition-rendering-mesh-viewer)
-
-find_package(ignition-rendering6 REQUIRED)
-find_package(ignition-common4 REQUIRED)
+project(gz-rendering-mesh-viewer)
+find_package(gz-rendering7 REQUIRED)
 
 include_directories(SYSTEM
   ${PROJECT_BINARY_DIR}
@@ -32,8 +30,7 @@ target_link_libraries(mesh_viewer
   ${GLUT_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
-  ${IGNITION-COMMON_LIBRARIES}
-  ${IGNITION-RENDERING_LIBRARIES}
+  ${GZ-RENDERING_LIBRARIES}
 )
 
 add_custom_command(TARGET mesh_viewer POST_BUILD

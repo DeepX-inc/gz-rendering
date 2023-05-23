@@ -9,16 +9,16 @@
 
 Build | Status
 -- | --
-Test coverage | [![codecov](https://codecov.io/gh/gazebosim/gz-rendering/branch/ign-rendering6/graph/badge.svg)](https://codecov.io/gh/gazebosim/gz-rendering/branch/ign-rendering6)
-Ubuntu Focal | [![Build Status](https://build.osrfoundation.org/buildStatus/icon?job=ignition_rendering-ci-ign-rendering6-focal-amd64)](https://build.osrfoundation.org/job/ignition_rendering-ci-ign-rendering6-focal-amd64)
-Homebrew      | [![Build Status](https://build.osrfoundation.org/buildStatus/icon?job=ignition_rendering-ci-ign-rendering6-homebrew-amd64)](https://build.osrfoundation.org/job/ignition_rendering-ci-ign-rendering6-homebrew-amd64)
-Windows       | [![Build Status](https://build.osrfoundation.org/buildStatus/icon?job=ign_rendering-ign-6-win)](https://build.osrfoundation.org/job/ign_rendering-ign-6-win)
+Test coverage | [![codecov](https://codecov.io/gh/gazebosim/gz-rendering/branch/main/graph/badge.svg)](https://codecov.io/gh/gazebosim/gz-rendering/branch/default)
+Ubuntu Focal | [![Build Status](https://build.osrfoundation.org/buildStatus/icon?job=ignition_rendering-ci-main-focal-amd64)](https://build.osrfoundation.org/job/ignition_rendering-ci-main-focal-amd64)
+Homebrew      | [![Build Status](https://build.osrfoundation.org/buildStatus/icon?job=ignition_rendering-ci-main-homebrew-amd64)](https://build.osrfoundation.org/job/ignition_rendering-ci-main-homebrew-amd64)
+Windows       | [![Build Status](https://build.osrfoundation.org/job/ign_rendering-ci-win/badge/icon)](https://build.osrfoundation.org/job/ign_rendering-ci-win/)
 
 Gazebo Rendering is a C++ library designed to provide an abstraction
 for different rendering engines. It offers unified APIs for creating
 3D graphics applications.
 
-Gazebo Rendering is a component in the [Gazebo](https://gazebosim.org/) framework, a set
+Gazebo Rendering is a component in the Gazebo framework, a set
 of libraries designed to rapidly develop robot applications.
 
 # Table of Contents
@@ -59,14 +59,14 @@ You can also take a look at the sample applications in the `examples` folder.
 
 # Folder Structure
 
-* `include/ignition/rendering`: Contains all the public header files which will be installed
+* `include/gz/rendering`: Contains all the public header files which will be installed
 
 * `src`: Contains all the C++ source code which are not installed.
 
 * `test`: All integration, performance and regression tests go here, under their
   specific folders.
 
-* `examples`: Sample programs to demonstrate different features of ign-rendering
+* `examples`: Sample programs to demonstrate different features of gz-rendering
 
 * `doc`: Files used by Doxygen when generating documentation.
 
@@ -74,7 +74,7 @@ Rendering engine plugin implementation code is stored in their own folders
 
 * `ogre` : OGRE 1.x rendering engine plugin
 
-* `ogre2` : OGRE 2.x rendering engine plugin (available in versions >= ign-rendering1)
+* `ogre2` : OGRE 2.x rendering engine plugin (available in versions >= gz-rendering1)
 
 * `optix` : OptiX rendering engine plugin
 

@@ -17,17 +17,17 @@
 
 #include <chrono>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Util.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Util.hh>
 
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreHeightmap.hh"
-#include "ignition/rendering/ogre/OgreLight.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreRenderEngine.hh"
-#include "ignition/rendering/ogre/OgreRTShaderSystem.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreHeightmap.hh"
+#include "gz/rendering/ogre/OgreLight.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreRenderEngine.hh"
+#include "gz/rendering/ogre/OgreRTShaderSystem.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
 
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR >= 11
 // Since OGRE 1.11, the once public
@@ -45,16 +45,16 @@ using Ogre::TechniqueType;
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR < 11
 /// \internal
 /// \brief Custom terrain material generator for GLSL terrains.
-/// A custom material generator that lets Ignition use GLSL shaders
+/// A custom material generator that lets Gazebo use GLSL shaders
 /// (as opposed to the default Cg shaders provided by Ogre) for rendering
 /// terrain.
-class IgnTerrainMatGen : public Ogre::TerrainMaterialGeneratorA
+class GzTerrainMatGen : public Ogre::TerrainMaterialGeneratorA
 {
   /// \brief Constructor
-  public: IgnTerrainMatGen();
+  public: GzTerrainMatGen();
 
   /// \brief Destructor
-  public: virtual ~IgnTerrainMatGen();
+  public: virtual ~GzTerrainMatGen();
 
   /// \brief Shader model 2 profile target.
   public: class SM2Profile :
@@ -310,7 +310,7 @@ class DummyPageProvider : public Ogre::PageProvider
 };
 
 //////////////////////////////////////////////////
-class ignition::rendering::OgreHeightmapPrivate
+class gz::rendering::OgreHeightmapPrivate
 {
   /// \brief Global options - in some Ogre versions, this is enforced as a
   /// singleton.
@@ -404,14 +404,14 @@ class ignition::rendering::OgreHeightmapPrivate
 
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR < 11
   /// \brief Pointer to the terrain material generator.
-  public: IgnTerrainMatGen *ignMatGen{nullptr};
+  public: GzTerrainMatGen *gzMatGen{nullptr};
 #endif
 };
 
 Ogre::TerrainGlobalOptions
-    *ignition::rendering::OgreHeightmapPrivate::terrainGlobals = nullptr;
+    *gz::rendering::OgreHeightmapPrivate::terrainGlobals = nullptr;
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -419,10 +419,10 @@ OgreHeightmap::OgreHeightmap(const HeightmapDescriptor &_desc)
     : BaseHeightmap(_desc), dataPtr(std::make_unique<OgreHeightmapPrivate>())
 {
   std::string home;
-  ignition::common::env(IGN_HOMEDIR, home);
+  gz::common::env(GZ_HOMEDIR, home);
 
   this->dataPtr->pagingDir =
-      common::joinPaths(home, ".ignition", "rendering",
+      common::joinPaths(home, ".gz", "rendering",
       this->dataPtr->pagingDirname);
 }
 
@@ -438,7 +438,7 @@ void OgreHeightmap::Init()
 
   if (this->descriptor.Data() == nullptr)
   {
-    ignerr << "Failed to initialize: null heightmap data." << std::endl;
+    gzerr << "Failed to initialize: null heightmap data." << std::endl;
     return;
   }
 
@@ -459,15 +459,13 @@ void OgreHeightmap::Init()
   // There is an issue with OGRE terrain LOD if heights are not relative to 0.
   // So we move the heightmap so that its min elevation = 0 before feeding to
   // ogre. It is later translated back by the setOrigin call.
-  double minElevation = 0.0;
-
-  // TODO(chapulina) add a virtual HeightmapData::MinElevation function to
-  // avoid the ifdef check. i.e. heightmapSizeZ = MaxElevation - MinElevation
-  double heightmapSizeZ = this->descriptor.Data()->MaxElevation();
+  double minElevation = this->descriptor.Data()->MinElevation();
+  double heightmapSizeZ =
+      this->descriptor.Data()->MaxElevation() - minElevation;
 
   // \todo These parameters shouldn't be hardcoded, and instead parametrized so
   // that they can be made consistent across different libraries (like
-  // ign-physics)
+  // gz-physics)
   bool flipY = false;
   // sampling size along image width and height
   unsigned int vertSize = (this->descriptor.Data()->Width() *
@@ -492,7 +490,7 @@ void OgreHeightmap::Init()
     {
       int index = (vertSize - y - 1) * vertSize + x;
 
-      // Sanity check in case we get NaNs from ign-common, this prevents a crash
+      // Sanity check in case we get NaNs from gz-common, this prevents a crash
       // in Ogre
       auto value = lookup[index];
       if (!std::isfinite(value))
@@ -506,13 +504,13 @@ void OgreHeightmap::Init()
 
   if (this->dataPtr->heights.empty())
   {
-    ignerr << "Failed to load terrain. Heightmap data is empty" << std::endl;
+    gzerr << "Failed to load terrain. Heightmap data is empty" << std::endl;
     return;
   }
 
   if (!math::isPowerOfTwo(this->dataPtr->dataSize - 1))
   {
-    ignerr << "Heightmap final sampling must satisfy 2^n+1."
+    gzerr << "Heightmap final sampling must satisfy 2^n+1."
            << std::endl << "size = (width * sampling) = sampling + 1"
            << std::endl << "[" << this->dataPtr->dataSize << "] = (["
            << this->descriptor.Data()->Width() << "] * ["
@@ -539,13 +537,21 @@ void OgreHeightmap::Init()
         "General");
   }
 
+  std::string terrainNameSuffix = "";
+  if (static_cast<unsigned int>(this->dataPtr->maxPixelError) == 0)
+  {
+    terrainNameSuffix = "_LOD0";
+  }
+
   // If the paging is enabled we modify the number of subterrains
   std::string prefix;
   if (this->descriptor.UseTerrainPaging())
   {
     this->dataPtr->splitTerrain = true;
     nTerrains = this->dataPtr->numTerrainSubdivisions;
-    prefix = common::joinPaths(terrainDirPath, "ignition_terrain_cache");
+    std::string terrainName = "gazebo_terrain_cache" +
+        terrainNameSuffix;
+    prefix = common::joinPaths(terrainDirPath, terrainName.c_str());
   }
   else
   {
@@ -561,10 +567,11 @@ void OgreHeightmap::Init()
         this->dataPtr->numTerrainSubdivisions = 16u;
       nTerrains = this->dataPtr->numTerrainSubdivisions;
 
-      ignmsg << "Large heightmap used with LOD. It will be subdivided into " <<
+      gzmsg << "Large heightmap used with LOD. It will be subdivided into " <<
           this->dataPtr->numTerrainSubdivisions << " terrains." << std::endl;
     }
-    prefix = common::joinPaths(terrainDirPath, "ignition_terrain");
+    std::string terrainName = "gazebo_terrain" + terrainNameSuffix;
+    prefix = common::joinPaths(terrainDirPath, terrainName.c_str());
   }
 
   double sqrtN = sqrt(nTerrains);
@@ -665,20 +672,20 @@ void OgreHeightmap::Init()
         static_cast<unsigned int>(sqrtN) - 1);
   }
 
-  ignmsg << "Loading heightmap: " << this->descriptor.Name() << std::endl;
+  gzmsg << "Loading heightmap: " << this->descriptor.Name() << std::endl;
   auto time = std::chrono::steady_clock::now();
 
   for (int y = 0; y <= sqrtN - 1; ++y)
     for (int x = 0; x <= sqrtN - 1; ++x)
       this->DefineTerrain(x, y);
 
-  // use ignition shaders
+  // use Gazebo shaders
   this->CreateMaterial();
 
   // Sync load since we want everything in place when we start
   this->dataPtr->terrainGroup->loadAllTerrains(true);
 
-  ignmsg << "Heightmap loaded. Process took "
+  gzmsg << "Heightmap loaded. Process took "
         <<  std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - time).count()
         << " ms." << std::endl;
@@ -731,7 +738,7 @@ void OgreHeightmap::PreRender()
 
   // saving an ogre terrain data file can take quite some time for large
   // terrains.
-  ignmsg << "Saving heightmap cache data to "
+  gzmsg << "Saving heightmap cache data to "
          << common::joinPaths(this->dataPtr->pagingDir, this->descriptor.Name())
          << std::endl;
   auto time = std::chrono::steady_clock::now();
@@ -744,12 +751,12 @@ void OgreHeightmap::PreRender()
   }
   catch(Ogre::Exception &_e)
   {
-    ignerr << "Failed to save heightmap: " << _e.what() << std::endl;
+    gzerr << "Failed to save heightmap: " << _e.what() << std::endl;
   }
 
   if (saved)
   {
-    ignmsg << "Heightmap cache data saved. Process took "
+    gzmsg << "Heightmap cache data saved. Process took "
           <<  std::chrono::duration_cast<std::chrono::milliseconds>(
               std::chrono::steady_clock::now() - time).count()
           << " ms." << std::endl;
@@ -851,7 +858,7 @@ bool OgreHeightmap::PrepareTerrain(
     }
     catch(std::ifstream::failure &_e)
     {
-      ignerr << "Terrain paging error: Unable to read terrain hash ["
+      gzerr << "Terrain paging error: Unable to read terrain hash ["
              << _e.what() << "]" << std::endl;
     }
   }
@@ -887,7 +894,7 @@ void OgreHeightmap::UpdateTerrainHash(const std::string &_hash,
   }
   else
   {
-    ignerr << "Unable to open file for creating a terrain hash: [" +
+    gzerr << "Unable to open file for creating a terrain hash: [" +
         terrainHashFullPath + "]" << std::endl;
   }
 }
@@ -899,7 +906,7 @@ void OgreHeightmap::SplitHeights(const std::vector<float> &_heightmap,
   // We support splitting the terrain in 4 or 16 pieces
   if (_n != 4 && _n != 16)
   {
-    ignerr << "Invalid number of terrain divisions [" << _n
+    gzerr << "Invalid number of terrain divisions [" << _n
            << "]. It should be 4 or 16." << std::endl;
     return;
   }
@@ -954,7 +961,7 @@ void OgreHeightmap::DefineTerrain(int _x, int _y)
 
   if (resourceExists && !this->dataPtr->terrainHashChanged)
   {
-    ignmsg << "Loading heightmap cache data: " << filename << std::endl;
+    gzmsg << "Loading heightmap cache data: " << filename << std::endl;
 
     this->dataPtr->terrainGroup->defineTerrain(_x, _y);
     this->dataPtr->loadedFromCache = true;
@@ -1003,11 +1010,11 @@ void OgreHeightmap::CreateMaterial()
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR < 11
     // use default material
     // RTSS PSSM shadows compatible terrain material
-    if (!this->dataPtr->ignMatGen)
-      this->dataPtr->ignMatGen = new IgnTerrainMatGen();
+    if (!this->dataPtr->gzMatGen)
+      this->dataPtr->gzMatGen = new GzTerrainMatGen();
 
     auto ptr = Ogre::TerrainMaterialGeneratorPtr();
-    ptr.bind(this->dataPtr->ignMatGen);
+    ptr.bind(this->dataPtr->gzMatGen);
 
     this->dataPtr->terrainGlobals->setDefaultMaterialGenerator(ptr);
 #else
@@ -1033,7 +1040,7 @@ void OgreHeightmap::SetupShadows(bool _enableShadows)
   // Assume we get a shader model 2 material profile
   Ogre::TerrainMaterialGeneratorA::SM2Profile *matProfile;
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR < 11
-  matProfile = static_cast<IgnTerrainMatGen::SM2Profile *>(
+  matProfile = static_cast<GzTerrainMatGen::SM2Profile *>(
       matGen->getActiveProfile());
 #else
   matProfile = static_cast<Ogre::TerrainMaterialGeneratorA::SM2Profile *>(
@@ -1068,7 +1075,7 @@ bool OgreHeightmap::InitBlendMaps(Ogre::Terrain *_terrain)
 {
   if (nullptr == _terrain)
   {
-    ignerr << "Invalid terrain\n";
+    gzerr << "Invalid terrain\n";
     return false;
   }
 
@@ -1080,7 +1087,7 @@ bool OgreHeightmap::InitBlendMaps(Ogre::Terrain *_terrain)
   // Bounds check for following loop
   if (_terrain->getLayerCount() < this->descriptor.BlendCount() + 1)
   {
-    ignerr << "Invalid terrain, too few layers ["
+    gzerr << "Invalid terrain, too few layers ["
            << unsigned(_terrain->getLayerCount())
            << "] for the number of blends ["
            << this->descriptor.BlendCount() << "] to initialize blend map"
@@ -1150,14 +1157,14 @@ MaterialPtr OgreHeightmap::Material() const
 
 /////////////////////////////////////////////////
 /////////////////////////////////////////////////
-// IgnTerrainMatGen
+// GzTerrainMatGen
 /////////////////////////////////////////////////
 /////////////////////////////////////////////////
 
 #if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR < 11
 
 /////////////////////////////////////////////////
-IgnTerrainMatGen::IgnTerrainMatGen()
+GzTerrainMatGen::GzTerrainMatGen()
 : TerrainMaterialGeneratorA()
 {
   /// \TODO(anyone) - This will have to be changed if TerrainMaterialGeneratorA
@@ -1176,12 +1183,12 @@ IgnTerrainMatGen::IgnTerrainMatGen()
 }
 
 /////////////////////////////////////////////////
-IgnTerrainMatGen::~IgnTerrainMatGen()
+GzTerrainMatGen::~GzTerrainMatGen()
 {
 }
 
 /////////////////////////////////////////////////
-IgnTerrainMatGen::SM2Profile::SM2Profile(
+GzTerrainMatGen::SM2Profile::SM2Profile(
     Ogre::TerrainMaterialGenerator *_parent, const Ogre::String &_name,
     const Ogre::String &_desc)
 : TerrainMaterialGeneratorA::SM2Profile(_parent, _name, _desc)
@@ -1190,7 +1197,7 @@ IgnTerrainMatGen::SM2Profile::SM2Profile(
 }
 
 /////////////////////////////////////////////////
-IgnTerrainMatGen::SM2Profile::~SM2Profile()
+GzTerrainMatGen::SM2Profile::~SM2Profile()
 {
   // Because the base SM2Profile has no virtual destructor:
   delete this->mShaderGen;
@@ -1198,7 +1205,7 @@ IgnTerrainMatGen::SM2Profile::~SM2Profile()
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::addTechnique(
+void GzTerrainMatGen::SM2Profile::addTechnique(
     const Ogre::MaterialPtr &_mat, const Ogre::Terrain *_terrain,
     TechniqueType _tt)
 {
@@ -1214,11 +1221,11 @@ void IgnTerrainMatGen::SM2Profile::addTechnique(
     if (hmgr.isLanguageSupported("glsl"))
     {
       this->mShaderGen = OGRE_NEW
-        IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL();
+        GzTerrainMatGen::SM2Profile::ShaderHelperGLSL();
     }
     else
     {
-      ignerr << "No supported shader languages" << std::endl;
+      gzerr << "No supported shader languages" << std::endl;
       return;
     }
 
@@ -1243,14 +1250,14 @@ void IgnTerrainMatGen::SM2Profile::addTechnique(
 
   // Doesn't delegate to the proper method otherwise
   Ogre::HighLevelGpuProgramPtr vprog =
-    ((IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL*)this->mShaderGen)
+    ((GzTerrainMatGen::SM2Profile::ShaderHelperGLSL*)this->mShaderGen)
     ->generateVertexProgram(this, _terrain, _tt);
 
   // DEBUG: std::cout << "VertShader[" << vprog->getName() << "]:\n"
   //          << vprog->getSource() << "\n\n";
 
   Ogre::HighLevelGpuProgramPtr fprog =
-    ((IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL*)this->mShaderGen)
+    ((GzTerrainMatGen::SM2Profile::ShaderHelperGLSL*)this->mShaderGen)
     ->generateFragmentProgram(this, _terrain, _tt);
 
   // DEBUG: std::cout << "FragShader[" << fprog->getName() << "]:\n"
@@ -1340,7 +1347,7 @@ void IgnTerrainMatGen::SM2Profile::addTechnique(
 // generate() and generateForCompositeMap() are identical to
 // TerrainMaterialGeneratorA implementation, the only reason for repeating
 // them is that, unfortunately, addTechnique() is not declared virtual.
-Ogre::MaterialPtr IgnTerrainMatGen::SM2Profile::generate(
+Ogre::MaterialPtr GzTerrainMatGen::SM2Profile::generate(
     const Ogre::Terrain *_terrain)
 {
   // re-use old material if exists
@@ -1401,7 +1408,7 @@ Ogre::MaterialPtr IgnTerrainMatGen::SM2Profile::generate(
 }
 
 /////////////////////////////////////////////////
-Ogre::MaterialPtr IgnTerrainMatGen::SM2Profile::generateForCompositeMap(
+Ogre::MaterialPtr GzTerrainMatGen::SM2Profile::generateForCompositeMap(
     const Ogre::Terrain *_terrain)
 {
   // re-use old material if exists
@@ -1435,19 +1442,19 @@ Ogre::MaterialPtr IgnTerrainMatGen::SM2Profile::generateForCompositeMap(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::UpdateParams(const Ogre::MaterialPtr &_mat,
+void GzTerrainMatGen::SM2Profile::UpdateParams(const Ogre::MaterialPtr &_mat,
                   const Ogre::Terrain *_terrain)
 {
-  static_cast<IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL*>(
+  static_cast<GzTerrainMatGen::SM2Profile::ShaderHelperGLSL*>(
       this->mShaderGen)->updateParams(this, _mat, _terrain, false);
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::UpdateParamsForCompositeMap(
+void GzTerrainMatGen::SM2Profile::UpdateParamsForCompositeMap(
     const Ogre::MaterialPtr &_mat, const Ogre::Terrain *_terrain)
 {
   // Only tested for Ogre 1.11 & 1.12
-  static_cast<IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL*>(
+  static_cast<GzTerrainMatGen::SM2Profile::ShaderHelperGLSL*>(
       this->mShaderGen)->updateParams(this, _mat, _terrain, true);
 }
 
@@ -1459,7 +1466,7 @@ void IgnTerrainMatGen::SM2Profile::UpdateParamsForCompositeMap(
 
 /////////////////////////////////////////////////
 Ogre::HighLevelGpuProgramPtr
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVertexProgram(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVertexProgram(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt)
 {
@@ -1478,7 +1485,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVertexProgram(
 
 /////////////////////////////////////////////////
 Ogre::HighLevelGpuProgramPtr
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgram(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgram(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain, TechniqueType _tt)
 {
   Ogre::HighLevelGpuProgramPtr ret = this->createFragmentProgram(_prof,
@@ -1556,7 +1563,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgram(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateParams(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateParams(
     const SM2Profile *_prof, const Ogre::MaterialPtr &_mat,
     const Ogre::Terrain *_terrain, bool _compositeMap)
 {
@@ -1590,7 +1597,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateParams(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::
 generateVertexProgramSource(const SM2Profile *_prof,
     const Ogre::Terrain* _terrain, TechniqueType _tt,
     Ogre::StringStream &_outStream)
@@ -1615,7 +1622,7 @@ generateVertexProgramSource(const SM2Profile *_prof,
 // TerrainMaterialGeneratorA::SM2Profile::ShaderHelperGLSL::generateVpHeader()
 // but is needed because generateVpDynamicShadowsParams() is not declared
 // virtual.
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpHeader(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpHeader(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, Ogre::StringStream &_outStream)
 {
@@ -1784,7 +1791,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpHeader(
         _outStream << "  worldPos.x += uv1.x * toMorph * lodMorph.x;\n";
         break;
       default:
-        ignerr << "Invalid alignment\n";
+        gzerr << "Invalid alignment\n";
     };
   }
 
@@ -1808,7 +1815,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpHeader(
 // This method is identical to
 // TerrainMaterialGeneratorA::SM2Profile::ShaderHelperGLSL::generateVpFooter()
 // but is needed because generateVpDynamicShadows() is not declared virtual.
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpFooter(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpFooter(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, Ogre::StringStream &_outStream)
 {
@@ -1839,7 +1846,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpFooter(
 
 /////////////////////////////////////////////////
 void
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpDynamicShadows(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpDynamicShadows(
     const SM2Profile *_prof, const Ogre::Terrain * /*_terrain*/,
     TechniqueType /*_tt*/, Ogre::StringStream &_outStream)
 {
@@ -1874,7 +1881,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateVpDynamicShadows(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::defaultVpParams(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::defaultVpParams(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, const Ogre::HighLevelGpuProgramPtr &_prog)
 {
@@ -1928,7 +1935,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::defaultVpParams(
 }
 
 /////////////////////////////////////////////////
-unsigned int IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::
+unsigned int GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::
 generateVpDynamicShadowsParams(unsigned int _texCoord, const SM2Profile *_prof,
     const Ogre::Terrain * /*_terrain*/, TechniqueType /*_tt*/,
     Ogre::StringStream &_outStream)
@@ -1958,7 +1965,7 @@ generateVpDynamicShadowsParams(unsigned int _texCoord, const SM2Profile *_prof,
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpHeader(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpHeader(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, Ogre::StringStream &_outStream)
 {
@@ -2147,7 +2154,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpHeader(
           _outStream << "  vec3 tangent = vec3(0.0, 0.0, -1.0);\n";
           break;
         default:
-          ignerr << "Invalid terrain alignment\n";
+          gzerr << "Invalid terrain alignment\n";
           break;
       };
 
@@ -2189,7 +2196,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpHeader(
 
 /////////////////////////////////////////////////
 void
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsParams(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsParams(
     Ogre::uint *_texCoord, Ogre::uint *_sampler, const SM2Profile *_prof,
     const Ogre::Terrain * /*_terrain*/, TechniqueType _tt,
     Ogre::StringStream &_outStream)
@@ -2225,7 +2232,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsParams(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpLayer(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpLayer(
     const SM2Profile *_prof, const Ogre::Terrain * /*_terrain*/,
     TechniqueType _tt, Ogre::uint _layer,
     Ogre::StringStream &_outStream)
@@ -2304,7 +2311,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpLayer(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpFooter(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpFooter(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, Ogre::StringStream &_outStream)
 {
@@ -2384,7 +2391,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpFooter(
 
 /////////////////////////////////////////////////
 void
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsHelpers(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsHelpers(
     const SM2Profile *_prof, const Ogre::Terrain * /*_terrain*/,
     TechniqueType /*_tt*/, Ogre::StringStream &_outStream)
 {
@@ -2522,7 +2529,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadowsHelpers(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadows(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadows(
     const SM2Profile *_prof, const Ogre::Terrain * /*_terrain*/,
     TechniqueType /*_tt*/, Ogre::StringStream &_outStream)
 {
@@ -2580,7 +2587,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFpDynamicShadows(
 
 /////////////////////////////////////////////////
 void
-IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgramSource(
+GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgramSource(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
     TechniqueType _tt, Ogre::StringStream &_outStream)
 {
@@ -2600,7 +2607,7 @@ IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::generateFragmentProgramSource(
 }
 
 /////////////////////////////////////////////////
-void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateVpParams(
+void GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateVpParams(
     const SM2Profile *_prof, const Ogre::Terrain *_terrain,
 #if OGRE_VERSION_MAJOR >= 1 && OGRE_VERSION_MINOR >= 8
     TechniqueType _tt,
@@ -2640,7 +2647,7 @@ void IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::updateVpParams(
 }
 
 /////////////////////////////////////////////////
-Ogre::String IgnTerrainMatGen::SM2Profile::ShaderHelperGLSL::GetChannel(
+Ogre::String GzTerrainMatGen::SM2Profile::ShaderHelperGLSL::GetChannel(
 Ogre::uint _idx)
 {
   Ogre::uint rem = _idx % 4;
@@ -2687,7 +2694,7 @@ void TerrainMaterial::setGridSize(const unsigned int _size)
 {
   if (_size == 0)
   {
-    ignerr << "Unable to set a grid size of zero" << std::endl;
+    gzerr << "Unable to set a grid size of zero" << std::endl;
     return;
   }
 

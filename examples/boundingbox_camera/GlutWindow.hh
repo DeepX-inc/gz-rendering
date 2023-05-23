@@ -14,16 +14,14 @@
  * limitations under the License.
  *
  */
-#ifndef IGNITION_RENDERING_EXAMPLES_BOUNDINGBOX_CAMERA_GLUTWINDOW_HH_
-#define IGNITION_RENDERING_EXAMPLES_BOUNDINGBOX_CAMERA_GLUTWINDOW_HH_
+#ifndef GZ_RENDERING_EXAMPLES_BOUNDINGBOX_CAMERA_GLUTWINDOW_HH_
+#define GZ_RENDERING_EXAMPLES_BOUNDINGBOX_CAMERA_GLUTWINDOW_HH_
 
 #include <vector>
-#include "ignition/rendering/RenderTypes.hh"
-
-namespace ir = ignition::rendering;
+#include "gz/rendering/RenderTypes.hh"
 
 /// \brief Run the demo and render the scene from the cameras
 /// \param[in] _cameras Cameras in the scene
-void run(std::vector<ir::CameraPtr> &_cameras);
+void run(std::vector<gz::rendering::CameraPtr> &_cameras);
 
 #endif

@@ -15,16 +15,17 @@
  *
  */
 
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreRenderTarget.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreSelectionBuffer.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/InstallationDirectories.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreRenderTarget.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreSelectionBuffer.hh"
+#include "gz/rendering/Utils.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -39,22 +40,18 @@ OgreCamera::~OgreCamera()
 }
 
 //////////////////////////////////////////////////
-Ogre::Camera *OgreCamera::Camera() const
-{
-  return this->ogreCamera;
-}
-
-//////////////////////////////////////////////////
 void OgreCamera::Destroy()
 {
   if (!this->ogreCamera)
     return;
 
+  this->DestroyRenderTexture();
+
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -69,31 +66,27 @@ void OgreCamera::Destroy()
 //////////////////////////////////////////////////
 math::Angle OgreCamera::HFOV() const
 {
-  double vfov = this->ogreCamera->getFOVy().valueRadians();
-  double hFOV = 2.0 * atan(tan(vfov / 2.0) * this->AspectRatio());
-  return math::Angle(hFOV);
+  return BaseCamera::HFOV();
 }
 
 //////////////////////////////////////////////////
 void OgreCamera::SetHFOV(const math::Angle &_angle)
 {
   BaseCamera::SetHFOV(_angle);
-  double angle = _angle.Radian();
-  double vfov = 2.0 * atan(tan(angle / 2.0) / this->AspectRatio());
-  this->ogreCamera->setFOVy(Ogre::Radian(vfov));
+  this->SyncOgreCameraAspectRatio();
 }
 
 //////////////////////////////////////////////////
 double OgreCamera::AspectRatio() const
 {
-  return this->ogreCamera->getAspectRatio();
+  return BaseCamera::AspectRatio();
 }
 
 //////////////////////////////////////////////////
 void OgreCamera::SetAspectRatio(const double _ratio)
 {
   BaseCamera::SetAspectRatio(_ratio);
-  return this->ogreCamera->setAspectRatio(_ratio);
+  this->SyncOgreCameraAspectRatio();
 }
 
 //////////////////////////////////////////////////
@@ -149,6 +142,16 @@ void OgreCamera::Init()
 }
 
 //////////////////////////////////////////////////
+void OgreCamera::SyncOgreCameraAspectRatio()
+{
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov = 2.0 * atan(tan(angle / 2.0) / aspectRatio);
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
+}
+
+//////////////////////////////////////////////////
 void OgreCamera::CreateCamera()
 {
   // create ogre camera object
@@ -156,13 +159,13 @@ void OgreCamera::CreateCamera()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
 
   this->ogreCamera = ogreSceneManager->createCamera(this->name);
   if (ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
   }
 
   this->ogreNode->attachObject(this->ogreCamera);
@@ -173,7 +176,6 @@ void OgreCamera::CreateCamera()
   this->ogreCamera->setFixedYawAxis(false);
 
   // TODO(anyone): provide api access
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setRenderingDistance(0);
   this->ogreCamera->setPolygonMode(Ogre::PM_SOLID);
   this->ogreCamera->setProjectionType(Ogre::PT_PERSPECTIVE);
@@ -183,6 +185,7 @@ void OgreCamera::CreateCamera()
 //////////////////////////////////////////////////
 void OgreCamera::CreateRenderTexture()
 {
+  this->DestroyRenderTexture();
   RenderTexturePtr base = this->scene->CreateRenderTexture();
   this->renderTexture = std::dynamic_pointer_cast<OgreRenderTexture>(base);
   this->renderTexture->SetCamera(this->ogreCamera);
@@ -190,6 +193,16 @@ void OgreCamera::CreateRenderTexture()
   this->renderTexture->SetWidth(this->ImageWidth());
   this->renderTexture->SetHeight(this->ImageHeight());
   this->renderTexture->SetBackgroundColor(this->scene->BackgroundColor());
+}
+
+//////////////////////////////////////////////////
+void OgreCamera::DestroyRenderTexture()
+{
+  if (this->renderTexture)
+  {
+    dynamic_cast<OgreRenderTarget *>(this->renderTexture.get())->Destroy();
+    this->renderTexture.reset();
+  }
 }
 
 //////////////////////////////////////////////////
@@ -215,7 +228,7 @@ void OgreCamera::SetSelectionBuffer()
 }
 
 //////////////////////////////////////////////////
-VisualPtr OgreCamera::VisualAt(const ignition::math::Vector2i
+VisualPtr OgreCamera::VisualAt(const math::Vector2i
     &_mousePos)
 {
   VisualPtr result;
@@ -231,7 +244,7 @@ VisualPtr OgreCamera::VisualAt(const ignition::math::Vector2i
   }
 
   float ratio = screenScalingFactor();
-  ignition::math::Vector2i mousePos(
+  math::Vector2i mousePos(
       static_cast<int>(std::rint(ratio * _mousePos.X())),
       static_cast<int>(std::rint(ratio * _mousePos.Y())));
 
@@ -251,7 +264,7 @@ VisualPtr OgreCamera::VisualAt(const ignition::math::Vector2i
       }
       catch(Ogre::Exception &e)
       {
-        ignerr << "Ogre Error:" << e.getFullDescription() << "\n";
+        gzerr << "Ogre Error:" << e.getFullDescription() << "\n";
       }
     }
   }
@@ -351,4 +364,10 @@ void OgreCamera::SetVisibilityMask(uint32_t _mask)
 {
   BaseCamera::SetVisibilityMask(_mask);
   this->renderTexture->SetVisibilityMask(_mask);
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *OgreCamera::Camera() const
+{
+  return this->ogreCamera;
 }

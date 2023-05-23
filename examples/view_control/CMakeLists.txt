@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(ignition-rendering-view-control)
-
-find_package(ignition-rendering6 REQUIRED)
-find_package(ignition-common4 REQUIRED)
+project(gz-rendering-view-control)
+find_package(gz-rendering7 REQUIRED)
 
 find_package(GLUT REQUIRED)
 include_directories(SYSTEM ${GLUT_INCLUDE_DIRS})
@@ -26,6 +24,5 @@ target_link_libraries(view_control
   ${GLUT_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
-  ${IGNITION-COMMON_LIBRARIES}
-  ${IGNITION-RENDERING_LIBRARIES}
+  ${GZ-RENDERING_LIBRARIES}
 )

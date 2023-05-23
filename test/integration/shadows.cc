@@ -17,57 +17,45 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Image.hh>
+#include "CommonRenderingTest.hh"
 
-#include "test_config.h"  // NOLINT(build/include)
+#include <gz/common/Image.hh>
 
-#include "ignition/rendering/Camera.hh"
-#include "ignition/rendering/Image.hh"
-#include "ignition/rendering/PixelFormat.hh"
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
+#include "gz/rendering/Camera.hh"
+#include "gz/rendering/Image.hh"
+#include "gz/rendering/PixelFormat.hh"
+#include "gz/rendering/Scene.hh"
 
-using namespace ignition;
+#include <gz/utils/ExtraTestMacros.hh>
+
+using namespace gz;
 using namespace rendering;
 
-class ShadowsTest: public testing::Test,
-                   public testing::WithParamInterface<const char *>
+class ShadowsTest: public CommonRenderingTest
 {
-  // Test and verify shadows are generated
-  public: void Shadows(const std::string &_renderEngine);
 };
 
 /////////////////////////////////////////////////
-void ShadowsTest::Shadows(const std::string &_renderEngine)
+TEST_F(ShadowsTest, GZ_UTILS_TEST_DISABLED_ON_WIN32(Shadows))
 {
   // override and make sure not to look for resources in installed share dir
   std::string projectSrcPath = PROJECT_SOURCE_PATH;
-  std::string env = "IGN_RENDERING_RESOURCE_PATH=" + projectSrcPath;
+  std::string env = "GZ_RENDERING_RESOURCE_PATH=" + projectSrcPath;
   putenv(const_cast<char *>(env.c_str()));
-
-  // create and populate scene
-  RenderEngine *engine = rendering::engine(_renderEngine);
-  if (!engine)
-  {
-    igndbg << "Engine '" << _renderEngine
-              << "' is not supported" << std::endl;
-    return;
-  }
 
   // add resources in build dir
   engine->AddResourcePath(
       common::joinPaths(std::string(PROJECT_BUILD_PATH), "src"));
 
   ScenePtr scene = engine->CreateScene("scene");
-  ASSERT_TRUE(scene != nullptr);
+  ASSERT_NE(nullptr, scene);
   scene->SetAmbientLight(0.3, 0.3, 0.3);
 
   VisualPtr root = scene->RootVisual();
+  ASSERT_NE(nullptr, root);
 
   CameraPtr camera = scene->CreateCamera();
-  ASSERT_TRUE(camera != nullptr);
+  ASSERT_NE(nullptr, camera);
 
   // downward looking camera
   camera->SetImageWidth(10);
@@ -198,21 +186,4 @@ void ShadowsTest::Shadows(const std::string &_renderEngine)
 
   // Clean up
   engine->DestroyScene(scene);
-  rendering::unloadEngine(engine->Name());
-}
-
-/////////////////////////////////////////////////
-TEST_P(ShadowsTest, Shadows)
-{
-  Shadows(GetParam());
-}
-
-INSTANTIATE_TEST_CASE_P(Shadows, ShadowsTest,
-    RENDER_ENGINE_VALUES,
-    ignition::rendering::PrintToStringParam());
-
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

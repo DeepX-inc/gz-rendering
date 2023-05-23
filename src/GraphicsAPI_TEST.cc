@@ -17,12 +17,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
+#include "gz/rendering/GraphicsAPI.hh"
 
-#include "test_config.h"  // NOLINT(build/include)
-#include "ignition/rendering/GraphicsAPI.hh"
-
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /////////////////////////////////////////////////

@@ -15,31 +15,37 @@
  *
 */
 
-#ifndef IGNITION_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_
-#define IGNITION_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_
+#ifndef GZ_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_
+#define GZ_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_
 
-#include <map>
-#include <string>
 #include <random>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include <ignition/math/Color.hh>
+#include <gz/math/Color.hh>
 
-#include "ignition/rendering/config.hh"
-#include "ignition/rendering/ogre2/Export.hh"
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/SegmentationCamera.hh"
+#include "gz/rendering/config.hh"
+#include "gz/rendering/ogre2/Export.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/SegmentationCamera.hh"
 
-namespace ignition
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 
 /// \brief Helper class to assign unique colors to renderables
-class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
+/// Due to historic reasons it's called "MaterialSwitcher" although
+/// there is no longer any material switching going on.
+///
+/// Hlms customizations take care of running custom code that outputs
+/// a flat colour
+class GZ_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
   public Ogre::Camera::Listener
 {
   /// \brief Constructor
@@ -62,6 +68,14 @@ class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
   /// \brief Get the map between color IDs and label IDs
   /// \return The map between color and label IDs
   public: const std::unordered_map<int64_t, int64_t> &ColorToLabel() const;
+
+  /// \brief Create a color to apply for the given visual
+  /// \param[in] _visual Visual will be applying the color to
+  /// \param[in,out] _prevParentName A persistent string between call
+  /// to ensure multilink visuals receive the same color
+  /// \return The color to apply to the visual
+  private: Ogre::Vector4 ColorForVisual(const VisualPtr &_visual,
+                                        std::string &_prevParentName);
 
   /// \brief Convert label of semantic map to a unique color for colored map and
   /// add the color of the label to the taken colors if it doesn't exist
@@ -88,25 +102,9 @@ class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
   /// \brief A map of ogre sub item pointer to its original hlms maults to 10mK
   private: double resolution = 0.01;
 
-  /// \brief A map of ogre sub item pointer to their original hlms material
-  private: std::unordered_map<Ogre::SubItem *,
-    Ogre::HlmsDatablock *> datablockMap;
-
-  /// \brief A map of ogre sub item pointer to their original low level material
-  private: std::map<Ogre::SubItem *, Ogre::MaterialPtr> segmentationMaterialMap;
-
-  /// \brief Ogre material consisting of a shader that changes the
-  /// appearance of item to use a unique color for mouse picking
-  private: Ogre::MaterialPtr plainMaterial;
-
-  /// \brief Ogre material consisting of a shader that changes the
-  /// appearance of item to use a unique color for mouse picking. In
-  /// addition, the depth check and depth write properties disabled.
-  private: Ogre::MaterialPtr plainOverlayMaterial;
-
   /// \brief Keep track of num of instances of the same label
   /// Key: label id, value: num of instances
-  private: std::unordered_map<unsigned int, unsigned int> instancesCount;
+  private: std::unordered_map<int, unsigned int> instancesCount;
 
   /// \brief keep track of the random colors (store encoded id of r,g,b)
   private: std::unordered_set<int64_t> takenColors;
@@ -121,6 +119,16 @@ class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
   /// or composite id (8 bit label + 16 bit instances) in instance type
   private: std::unordered_map<int64_t, int64_t> colorToLabel;
 
+  /// \brief A map of ogre datablock pointer to their original blendblocks
+  private: std::unordered_map<Ogre::HlmsDatablock *,
+      const Ogre::HlmsBlendblock *> datablockMap;
+
+  /// \brief A map of ogre sub item pointer to their original low level
+  /// material.
+  /// Most objects don't use one so it should be almost always empty.
+  private:
+    std::vector<std::pair<Ogre::SubItem *, Ogre::MaterialPtr>> materialMap;
+
   /// \brief Pseudo num generator to generate colors from label id
   private: std::default_random_engine generator;
 
@@ -134,6 +142,6 @@ class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2SegmentationMaterialSwitcher :
 };
 }
 }  // namespace rendering
-}  // namespace ignition
+}  // namespace gz
 
-#endif  // IGNITION_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_
+#endif  // GZ_RENDERING_OGRE2_OGRE2SEGMENTATIONMATERIALSWITCHER_HH_

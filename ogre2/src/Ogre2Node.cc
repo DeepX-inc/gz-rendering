@@ -15,12 +15,13 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Node.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Storage.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Node.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Storage.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -30,7 +31,7 @@
   #pragma warning(pop)
 #endif
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -109,6 +110,16 @@ void Ogre2Node::SetRawLocalPosition(const math::Vector3d &_position)
   if (nullptr == this->ogreNode)
     return;
 
+  // ogre crashes in the compositor shadow pass with an
+  // Ogre::AxisAlignedBox::setExtents assertion error when the camera scene node
+  // position has large values. Added a workaround that places a max limit on
+  // the length of the position vector.
+  if (dynamic_cast<Ogre2Camera *>(this) && _position.Length() > 1e9)
+  {
+    ignerr << "Unable to set camera node position to a distance larger than "
+           << "1e9 from origin" << std::endl;
+    return;
+  }
   this->ogreNode->setPosition(Ogre2Conversions::Convert(_position));
 }
 
@@ -146,21 +157,21 @@ void Ogre2Node::Init()
 {
   if (nullptr == this->scene)
   {
-    ignerr << "Failed to initialize node: scene is NULL" << std::endl;
+    gzerr << "Failed to initialize node: scene is NULL" << std::endl;
     return;
   }
 
   auto sceneManager = this->scene->OgreSceneManager();
   if (nullptr == sceneManager)
   {
-    ignerr << "Failed to initialize node: scene manager is NULL" << std::endl;
+    gzerr << "Failed to initialize node: scene manager is NULL" << std::endl;
     return;
   }
 
   this->ogreNode = sceneManager->createSceneNode();
   if (nullptr == this->ogreNode)
   {
-    ignerr << "Failed to create Ogre node" << std::endl;
+    gzerr << "Failed to create Ogre node" << std::endl;
     return;
   }
   this->ogreNode->setInheritScale(true);
@@ -183,7 +194,7 @@ bool Ogre2Node::AttachChild(NodePtr _child)
 
   if (!derived)
   {
-    ignerr << "Cannot attach node created by another render-engine"
+    gzerr << "Cannot attach node created by another render-engine"
         << std::endl;
     return false;
   }
@@ -195,7 +206,7 @@ bool Ogre2Node::AttachChild(NodePtr _child)
   {
     if (p == derived->Node())
     {
-      ignerr << "Node cycle detected. Not adding Node: " << _child->Name()
+      gzerr << "Node cycle detected. Not adding Node: " << _child->Name()
              << std::endl;
       return false;
     }
@@ -217,7 +228,7 @@ bool Ogre2Node::DetachChild(NodePtr _child)
 
   if (!derived)
   {
-    ignerr << "Cannot detach node created by another render-engine"
+    gzerr << "Cannot detach node created by another render-engine"
         << std::endl;
     return false;
   }
@@ -269,5 +280,3 @@ void Ogre2Node::SetLocalScaleImpl(const math::Vector3d &_scale)
 
   this->ogreNode->setScale(Ogre2Conversions::Convert(_scale));
 }
-
-

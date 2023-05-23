@@ -7,8 +7,8 @@ This example shows how to include a particle emitter in the scene.
 Clone the source code, create a build directory and use `cmake` and `make` to compile the code:
 
 ```{.sh}
-git clone https://github.com/ignitionrobotics/ign-rendering
-cd ign-rendering/examples/particles_demo
+git clone https://github.com/gazebosim/gz-rendering
+cd gz-rendering/examples/particles_demo
 mkdir build
 cd build
 cmake ..
@@ -23,7 +23,7 @@ Execute the example:
 You'll see:
 
 ```{.sh}
-[Msg] Loading plugin [ignition-rendering6-ogre2]
+[Msg] Loading plugin [gz-rendering7-ogre2]
 ===============================
   TAB - Switch render engines
   ESC - Exit

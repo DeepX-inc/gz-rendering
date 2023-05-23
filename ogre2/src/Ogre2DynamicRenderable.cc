@@ -17,20 +17,21 @@
 
 // Note this include is placed in the src file because
 // otherwise ogre produces compile errors
-#ifdef _MSC_VER
-#pragma warning(push, 0)
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 5033)
 #endif
 #include <Hlms/Pbs/OgreHlmsPbsDatablock.h>
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
-#include "ignition/common/Console.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2DynamicRenderable.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/common/Console.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2DynamicRenderable.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -46,13 +47,13 @@
 #endif
 
 /// \brief Private implementation
-class ignition::rendering::Ogre2DynamicRenderablePrivate
+class gz::rendering::Ogre2DynamicRenderablePrivate
 {
   /// \brief list of colors at each point
-  public: std::vector<ignition::math::Color> colors;
+  public: std::vector<gz::math::Color> colors;
 
   /// \brief List of vertices for the mesh
-  public: std::vector<ignition::math::Vector3d> vertices;
+  public: std::vector<gz::math::Vector3d> vertices;
 
   /// \brief Used to indicate if the lines require an update
   public: bool dirty = false;
@@ -93,7 +94,7 @@ class ignition::rendering::Ogre2DynamicRenderablePrivate
 };
 
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -332,6 +333,10 @@ void Ogre2DynamicRenderable::UpdateBuffer()
   this->GenerateNormals(this->dataPtr->operationType, this->dataPtr->vertices,
       vertices);
 
+  // fill colors for points
+  this->GenerateColors(this->dataPtr->operationType, this->dataPtr->vertices,
+      vertices);
+
   // unmap buffer
   this->dataPtr->vertexBuffer->unmap(Ogre::UO_KEEP_PERSISTENT);
 
@@ -359,7 +364,7 @@ void Ogre2DynamicRenderable::UpdateBuffer()
       this->dataPtr->ogreItem->setCastShadows(
           this->dataPtr->material->CastShadows());
     }
-    else if (lowLevelMat)
+    if (lowLevelMat)
     {
       // the _initialise call above resets the ogre item properties so set
       // them again
@@ -401,7 +406,7 @@ void Ogre2DynamicRenderable::SetOperationType(MarkerType _opType)
       break;
 
     default:
-      ignerr << "Unknown render operation type[" << _opType << "]\n";
+      gzerr << "Unknown render operation type[" << _opType << "]\n";
       return;
   }
 }
@@ -442,13 +447,13 @@ MarkerType Ogre2DynamicRenderable::OperationType() const
 }
 
 /////////////////////////////////////////////////
-void Ogre2DynamicRenderable::AddPoint(const ignition::math::Vector3d &_pt,
-                                      const ignition::math::Color &_color)
+void Ogre2DynamicRenderable::AddPoint(const math::Vector3d &_pt,
+                                      const math::Color &_color)
 {
   this->dataPtr->vertices.push_back(_pt);
 
   // todo(anyone)
-  // setting material works but vertex coloring does not work yet.
+  // setting material works but vertex coloring only works for points
   // It requires using an unlit datablock:
   // https://forums.ogre3d.org/viewtopic.php?t=93627#p539276
   this->dataPtr->colors.push_back(_color);
@@ -458,18 +463,18 @@ void Ogre2DynamicRenderable::AddPoint(const ignition::math::Vector3d &_pt,
 
 /////////////////////////////////////////////////
 void Ogre2DynamicRenderable::AddPoint(double _x, double _y, double _z,
-                                      const ignition::math::Color &_color)
+                                      const math::Color &_color)
 {
-  this->AddPoint(ignition::math::Vector3d(_x, _y, _z), _color);
+  this->AddPoint(math::Vector3d(_x, _y, _z), _color);
 }
 
 /////////////////////////////////////////////////
 void Ogre2DynamicRenderable::SetPoint(unsigned int _index,
-                                      const ignition::math::Vector3d &_value)
+                                      const math::Vector3d &_value)
 {
   if (_index >= this->dataPtr->vertices.size())
   {
-    ignerr << "Point index[" << _index << "] is out of bounds[0-"
+    gzerr << "Point index[" << _index << "] is out of bounds[0-"
            << this->dataPtr->vertices.size()-1 << "]\n";
     return;
   }
@@ -481,37 +486,37 @@ void Ogre2DynamicRenderable::SetPoint(unsigned int _index,
 
 /////////////////////////////////////////////////
 void Ogre2DynamicRenderable::SetColor(unsigned int _index,
-                                      const ignition::math::Color &_color)
+                                      const math::Color &_color)
 {
   if (_index >= this->dataPtr->colors.size())
   {
-    ignerr << "Point color index[" << _index << "] is out of bounds[0-"
+    gzerr << "Point color index[" << _index << "] is out of bounds[0-"
            << this->dataPtr->colors.size()-1 << "]\n";
     return;
   }
 
 
   // todo(anyone)
-  // vertex coloring does not work yet. It requires using an unlit datablock:
+  // vertex coloring only works for points.
+  // Full implementation requires using an unlit datablock:
   // https://forums.ogre3d.org/viewtopic.php?t=93627#p539276
   this->dataPtr->colors[_index] = _color;
 
-  // uncomment this line when colors are working
-  // this->dataPtr->dirty = true;
+  this->dataPtr->dirty = true;
 }
 
 /////////////////////////////////////////////////
-ignition::math::Vector3d Ogre2DynamicRenderable::Point(
+math::Vector3d Ogre2DynamicRenderable::Point(
     const unsigned int _index) const
 {
   if (_index >= this->dataPtr->vertices.size())
   {
-    ignerr << "Point index[" << _index << "] is out of bounds[0-"
+    gzerr << "Point index[" << _index << "] is out of bounds[0-"
            << this->dataPtr->vertices.size()-1 << "]\n";
 
-    return ignition::math::Vector3d(ignition::math::INF_D,
-                                    ignition::math::INF_D,
-                                    ignition::math::INF_D);
+    return math::Vector3d(math::INF_D,
+                                    math::INF_D,
+                                    math::INF_D);
   }
 
   return this->dataPtr->vertices[_index];
@@ -544,7 +549,7 @@ void Ogre2DynamicRenderable::SetMaterial(MaterialPtr _material, bool _unique)
 
   if (!derived)
   {
-    ignerr << "Cannot assign material created by another render-engine"
+    gzerr << "Cannot assign material created by another render-engine"
         << std::endl;
 
     return;
@@ -705,6 +710,45 @@ void Ogre2DynamicRenderable::GenerateNormals(Ogre::OperationType _opType,
         _vbuffer[idx3+3] = n3a.X();
         _vbuffer[idx3+4] = n3a.Y();
         _vbuffer[idx3+5] = n3a.Z();
+      }
+
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+//////////////////////////////////////////////////
+void Ogre2DynamicRenderable::GenerateColors(Ogre::OperationType _opType,
+  const std::vector<math::Vector3d> &_vertices, float *_vbuffer)
+{
+  // Skip if colors haven't been setup per-vertex correctly.
+  if (_vertices.size() != this->dataPtr->colors.size())
+    return;
+
+  // Each vertex occupies 6 elements in the vbuffer float array. Normally,
+  // the last 3 are reserved for normals. But for types that don't use normals,
+  // we use them for per-vertex coloring.
+  // vbuffer[i]   : position x
+  // vbuffer[i+1] : position y
+  // vbuffer[i+2] : position z
+  // vbuffer[i+3] : color r
+  // vbuffer[i+4] : color g
+  // vbuffer[i+5] : color b
+  switch (_opType)
+  {
+    case Ogre::OperationType::OT_POINT_LIST:
+    {
+      for (unsigned int i = 0; i < this->dataPtr->vertexBufferCapacity; ++i)
+      {
+        math::Color color = i < this->dataPtr->colors.size() ?
+            this->dataPtr->colors[i] : this->dataPtr->colors.back();
+
+        unsigned int idx = i * 6;
+        _vbuffer[idx+3] = color.R();
+        _vbuffer[idx+4] = color.G();
+        _vbuffer[idx+5] = color.B();
       }
 
       break;

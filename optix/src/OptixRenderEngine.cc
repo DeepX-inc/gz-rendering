@@ -17,15 +17,15 @@
 
 #include <vector>
 
-#include <ignition/plugin/Register.hh>
+#include <gz/plugin/Register.hh>
 
-#include "ignition/rendering/RenderEngineManager.hh"
-#include "ignition/rendering/optix/OptixIncludes.hh"
-#include "ignition/rendering/optix/OptixScene.hh"
-#include "ignition/rendering/optix/OptixStorage.hh"
-#include "ignition/rendering/optix/OptixRenderEngine.hh"
+#include "gz/rendering/RenderEngineManager.hh"
+#include "gz/rendering/optix/OptixIncludes.hh"
+#include "gz/rendering/optix/OptixScene.hh"
+#include "gz/rendering/optix/OptixStorage.hh"
+#include "gz/rendering/optix/OptixRenderEngine.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -80,9 +80,23 @@ std::string OptixRenderEngine::PtxFile(const std::string& _fileBase) const
 
   std::vector<std::string> folders;
 
-  const char *env= std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env= std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
   resourcePath = common::joinPaths(resourcePath, "optix");
   folders.push_back(resourcePath);
 
@@ -133,6 +147,12 @@ bool OptixRenderEngine::InitImpl()
   return true;
 }
 
+//////////////////////////////////////////////////
+OptixRenderEngine *OptixRenderEngine::Instance()
+{
+  return SingletonT<OptixRenderEngine>::Instance();
+}
+
 // Register this plugin
-IGNITION_ADD_PLUGIN(ignition::rendering::OptixRenderEnginePlugin,
-                    ignition::rendering::RenderEnginePlugin)
+GZ_ADD_PLUGIN(OptixRenderEnginePlugin,
+              rendering::RenderEnginePlugin)

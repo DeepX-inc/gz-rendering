@@ -1,14 +1,14 @@
 \page actor_animation Actor animation tutorial
 
-This tutorial will show you how to use the Ignition Rendering library to create an actor animation.
+This tutorial will show you how to use the Gazebo Rendering library to create an actor animation.
 
 ## Compile and run the example
 
 Clone the source code, Create a build directory and use `cmake` and `make` to compile the code:
 
 ```{.sh}
-git clone https://github.com/ignitionrobotics/ign-rendering
-cd ign-rendering/examples/actor_animation
+git clone https://github.com/gazebosim/gz-rendering
+cd gz-rendering/examples/actor_animation
 mkdir build
 cd build
 cmake ..
@@ -45,7 +45,7 @@ Create a `Visual` pointer with the scene manager and set the position and rotati
 
 \snippet examples/actor_animation/Main.cc create a visual for the actor
 
-Create the mesh in ign-rendering - this loads the animations into the render engine
+Create the mesh in gz-rendering - this loads the animations into the render engine
 
 \snippet examples/actor_animation/Main.cc create mesh
 

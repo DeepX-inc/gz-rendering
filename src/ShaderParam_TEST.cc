@@ -17,9 +17,9 @@
 #include <gtest/gtest.h>
 
 
-#include "ignition/rendering/ShaderParam.hh"
+#include "gz/rendering/ShaderParam.hh"
 
-using namespace ignition::rendering;
+using namespace gz::rendering;
 
 
 /////////////////////////////////////////////////
@@ -230,11 +230,4 @@ TEST(ShaderParam, TextureType)
   p3.Value(texNameRet3, uvSetIndexRet3);
   EXPECT_EQ(texName, texNameRet3);
   EXPECT_EQ(uvSetIndex, uvSetIndexRet3);
-}
-
-//////////////////////////////////////////////////
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

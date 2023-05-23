@@ -15,17 +15,17 @@
  *
  */
 
-#include <ignition/common/Console.hh>
-#include <ignition/math/Plane.hh>
+#include <gz/common/Console.hh>
+#include <gz/math/Plane.hh>
 
-#include "ignition/rendering/Camera.hh"
-#include "ignition/rendering/GizmoVisual.hh"
-#include "ignition/rendering/RayQuery.hh"
-#include "ignition/rendering/Scene.hh"
-#include "ignition/rendering/TransformController.hh"
+#include "gz/rendering/Camera.hh"
+#include "gz/rendering/GizmoVisual.hh"
+#include "gz/rendering/RayQuery.hh"
+#include "gz/rendering/Scene.hh"
+#include "gz/rendering/TransformController.hh"
 
 /// \brief Private data class for TransformController
-class ignition::rendering::TransformControllerPrivate
+class gz::rendering::TransformControllerPrivate
 {
   /// \brief Gizmo visual that provides translation, rotation, and scale
   /// tandles for transformation
@@ -48,21 +48,21 @@ class ignition::rendering::TransformControllerPrivate
   public: RayQueryPtr ray;
 
   /// \brief Current active axis of transformation
-  public: ignition::math::Vector3d axis;
+  public: gz::math::Vector3d axis;
 
   /// \brief Flag to indicate that transfomation is in progress.
   public: bool active = false;
 
   /// \brief Initial pose of the node being transformed.
   /// This is set in Start();
-  public: ignition::math::Pose3d nodeStartPose;
+  public: gz::math::Pose3d nodeStartPose;
 
   /// \brief Initial scale of the node being transformed.
   /// This is set in Start();
-  public: ignition::math::Vector3d nodeStartScale;
+  public: gz::math::Vector3d nodeStartScale;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -142,14 +142,14 @@ void TransformController::Update()
     VisualPtr xVis = this->dataPtr->gizmoVisual->ChildByAxis(
         TransformAxis::TA_ROTATION_X);
     math::Vector3d xRot(atan2(-eye.Y(), eye.Z()), 0, 0);
-    math::Vector3d xRotOffset(0, -IGN_PI * 0.5, 0);
+    math::Vector3d xRotOffset(0, -GZ_PI * 0.5, 0);
     xVis->SetWorldRotation(nodeRot *
         math::Quaterniond(xRot) * math::Quaterniond(xRotOffset));
 
     VisualPtr yVis = this->dataPtr->gizmoVisual->ChildByAxis(
         TransformAxis::TA_ROTATION_Y);
     math::Vector3d yRot(0, atan2(eye.X(), eye.Z()), 0);
-    math::Vector3d yRotOffset(IGN_PI * 0.5, -IGN_PI * 0.5, 0);
+    math::Vector3d yRotOffset(GZ_PI * 0.5, -GZ_PI * 0.5, 0);
     yVis->SetWorldRotation(nodeRot *
         math::Quaterniond(yRot) * math::Quaterniond(yRotOffset));
 
@@ -162,7 +162,7 @@ void TransformController::Update()
         TransformAxis::TA_ROTATION_Z << 1);
     math::Matrix4d lookAt;
     lookAt = lookAt.LookAt(this->dataPtr->camera->WorldPosition(), pos);
-    math::Vector3d circleRotOffset(0, IGN_PI * 0.5, 0);
+    math::Vector3d circleRotOffset(0, GZ_PI * 0.5, 0);
     circleVis->SetWorldRotation(
         lookAt.Rotation() * math::Quaterniond(circleRotOffset));
   }
@@ -265,7 +265,7 @@ void TransformController::Translate(
 {
   if (!this->dataPtr->node)
   {
-    ignerr << "No node attached for transformation" << std::endl;
+    gzerr << "No node attached for transformation" << std::endl;
     return;
   }
 
@@ -306,13 +306,13 @@ math::Vector3d TransformController::TranslationFrom2d(
 {
   if (!this->dataPtr->node)
   {
-    ignerr << "No node attached" << std::endl;
+    gzerr << "No node attached" << std::endl;
     return math::Vector3d::Zero;
   }
 
   if (!this->dataPtr->camera)
   {
-    ignerr << "Camera not set" << std::endl;
+    gzerr << "Camera not set" << std::endl;
     return math::Vector3d::Zero;
   }
 
@@ -386,13 +386,13 @@ math::Vector3d TransformController::ScaleFrom2d(
 {
   if (!this->dataPtr->node)
   {
-    ignerr << "No node attached" << std::endl;
+    gzerr << "No node attached" << std::endl;
     return math::Vector3d::Zero;
   }
 
   if (!this->dataPtr->camera)
   {
-    ignerr << "Camera not set" << std::endl;
+    gzerr << "Camera not set" << std::endl;
     return math::Vector3d::Zero;
   }
 
@@ -451,8 +451,8 @@ math::Planed TransformController::CreatePlaneForTransform(
   }
   else
   {
-    ignition::math::Vector3d projNorm(0, 0, 0);
-    ignition::math::Vector3d planeNormOther(0, 0, 0);
+    math::Vector3d projNorm(0, 0, 0);
+    math::Vector3d planeNormOther(0, 0, 0);
 
     if (_axis.X() > 0 && _axis.Y() > 0)
     {
@@ -530,7 +530,7 @@ void TransformController::Rotate(const math::Quaterniond &_rotation, bool _snap)
 {
   if (!this->dataPtr->node)
   {
-    ignerr << "No node attached for transformation" << std::endl;
+    gzerr << "No node attached for transformation" << std::endl;
     return;
   }
 
@@ -548,9 +548,9 @@ void TransformController::Rotate(const math::Quaterniond &_rotation, bool _snap)
   {
     math::Vector3d axis;
     double angle;
-    rotation.ToAxis(axis, angle);
-    angle = rint(angle / (IGN_PI * 0.25)) * (IGN_PI * 0.25);
-    rotation.Axis(axis, angle);
+    rotation.AxisAngle(axis, angle);
+    angle = rint(angle / (GZ_PI * 0.25)) * (GZ_PI * 0.25);
+    rotation.SetFromAxisAngle(axis, angle);
   }
 
   this->dataPtr->node->SetWorldRotation(rotation);
@@ -564,7 +564,7 @@ void TransformController::Scale(const math::Vector3d &_scale, bool _snap)
 {
   if (!this->dataPtr->node)
   {
-    ignerr << "No node attached for transformation" << std::endl;
+    gzerr << "No node attached for transformation" << std::endl;
     return;
   }
 
@@ -591,24 +591,24 @@ void TransformController::Scale(const math::Vector3d &_scale, bool _snap)
 }
 
 /////////////////////////////////////////////////
-ignition::math::Vector3d TransformController::SnapPoint(
-    const ignition::math::Vector3d &_point,
+math::Vector3d TransformController::SnapPoint(
+    const math::Vector3d &_point,
     double _interval, double _sensitivity)
 {
   if (_interval < 0)
   {
-    ignerr << "Interval distance must be greater than or equal to 0"
+    gzerr << "Interval distance must be greater than or equal to 0"
         << std::endl;
-    return ignition::math::Vector3d::Zero;
+    return math::Vector3d::Zero;
   }
 
   if (_sensitivity < 0 || _sensitivity > 1.0)
   {
-    ignerr << "Sensitivity must be between 0 and 1" << std::endl;
-    return ignition::math::Vector3d::Zero;
+    gzerr << "Sensitivity must be between 0 and 1" << std::endl;
+    return math::Vector3d::Zero;
   }
 
-  ignition::math::Vector3d point = _point;
+  math::Vector3d point = _point;
   double snap = _interval * _sensitivity;
 
   double remainder = fmod(point.X(), _interval);

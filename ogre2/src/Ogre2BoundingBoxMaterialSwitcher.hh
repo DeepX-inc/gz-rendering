@@ -15,22 +15,22 @@
  *
 */
 
-#ifndef IGNITION_RENDERING_OGRE2_OGRE2BBOXMATERIALSWITCHER_HH_
-#define IGNITION_RENDERING_OGRE2_OGRE2BBOXMATERIALSWITCHER_HH_
+#ifndef GZ_RENDERING_OGRE2_OGRE2BBOXMATERIALSWITCHER_HH_
+#define GZ_RENDERING_OGRE2_OGRE2BBOXMATERIALSWITCHER_HH_
 
 #include <map>
 #include <string>
 
-#include "ignition/rendering/config.hh"
-#include "ignition/rendering/ogre2/Export.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
+#include "gz/rendering/config.hh"
+#include "gz/rendering/ogre2/Export.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2BoundingBoxCamera.hh"
 
-namespace ignition
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 
 /// \brief Helper class to assign ogre Id & label to each pixels
 /// used in checking bounding boxes visibility in case of full mode
@@ -89,5 +89,5 @@ class Ogre2BoundingBoxMaterialSwitcher : public Ogre::Camera::Listener
 };
 }
 }  // namespace rendering
-}  // namespace ignition
+}  // namespace gz
 #endif

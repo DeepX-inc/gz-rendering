@@ -1,16 +1,19 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
-set(IGN_PLUGIN_VER 1)
-set(IGN_COMMON_VER 3)
+find_package(gz-rendering7 REQUIRED)
+set(GZ_RENDERING_VER ${gz-rendering7_VERSION_MAJOR})
 
-find_package(ignition-rendering6 REQUIRED)
-find_package(ignition-plugin1 REQUIRED COMPONENTS all)
+find_package(gz-plugin2 REQUIRED COMPONENTS all)
+set(GZ_PLUGIN_VER ${gz-plugin2_VERSION_MAJOR})
+
+find_package(gz-common5 REQUIRED)
+set(GZ_COMMON_VER ${gz-common5_VERSION_MAJOR})
 
 add_library(HelloWorldPlugin SHARED HelloWorldPlugin.cc)
 target_link_libraries(HelloWorldPlugin
   PUBLIC
-    ${IGNITION-RENDERING_LIBRARIES}
-    ${ignition-common${IGN_COMMON_VER}_LIBRARIES}
+    gz-rendering${GZ_RENDERING_VER}::gz-rendering${GZ_RENDERING_VER}
+    gz-common${GZ_COMMON_VER}::gz-common${GZ_COMMON_VER}
   PRIVATE
-    ignition-plugin${IGN_PLUGIN_VER}::register
+    gz-plugin${GZ_PLUGIN_VER}::register
 )

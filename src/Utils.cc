@@ -20,19 +20,21 @@
 #include <X11/Xresource.h>
 #endif
 
-#include "ignition/math/Plane.hh"
-#include "ignition/math/Vector2.hh"
-#include "ignition/math/Vector3.hh"
+#include "gz/math/Plane.hh"
+#include "gz/math/Vector2.hh"
+#include "gz/math/Vector3.hh"
 
-#include "ignition/rendering/Camera.hh"
-#include "ignition/rendering/RayQuery.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/Camera.hh"
+#include "gz/rendering/RayQuery.hh"
+#include "gz/rendering/PixelFormat.hh"
+#include "gz/rendering/Utils.hh"
 
-namespace ignition
+
+namespace gz
 {
 namespace rendering
 {
-inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
+inline namespace GZ_RENDERING_VERSION_NAMESPACE {
 //
 /////////////////////////////////////////////////
 math::Vector3d screenToScene(
@@ -91,7 +93,7 @@ math::Vector3d screenToPlane(
   _rayQuery->SetFromCamera(
       _camera, math::Vector2d(nx, ny));
 
-  ignition::math::Planed plane(ignition::math::Vector3d(0, 0, 1), offset);
+  gz::math::Planed plane(gz::math::Vector3d(0, 0, 1), offset);
 
   math::Vector3d origin = _rayQuery->Origin();
   math::Vector3d direction = _rayQuery->Direction();
@@ -106,7 +108,7 @@ float screenScalingFactor()
   float ratio = 1.0;
 
   // the scaling factor seems to cause issues with mouse picking.
-  // see https://github.com/gazebosim/gz-gazebo/issues/147
+  // see https://github.com/gazebosim/gz-sim/issues/147
 #if 0
   auto closeDisplay = [](Display * display)
   {
@@ -164,37 +166,56 @@ float screenScalingFactor()
 }
 
 /////////////////////////////////////////////////
-ignition::math::AxisAlignedBox transformAxisAlignedBox(
-    const ignition::math::AxisAlignedBox &_bbox,
-    const ignition::math::Pose3d &_pose)
+gz::math::Matrix3d projectionToCameraIntrinsic(
+    const gz::math::Matrix4d &_projectionMatrix,
+    double _width, double _height)
+{
+  // Extracting the intrinsic matrix :
+  // https://ogrecave.github.io/ogre/api/13/class_ogre_1_1_math.html
+  double fX = (_projectionMatrix(0, 0) * _width) / 2.0;
+  double fY = (_projectionMatrix(1, 1) * _height) / 2.0;
+  double cX = (-1.0 * _width *
+               (_projectionMatrix(0, 2) - 1.0)) / 2.0;
+  double cY = _height + (_height *
+               (_projectionMatrix(1, 2) - 1)) / 2.0;
+
+  return gz::math::Matrix3d(fX, 0, cX,
+                            0, fY, cY,
+                            0, 0, 1);
+}
+
+/////////////////////////////////////////////////
+gz::math::AxisAlignedBox transformAxisAlignedBox(
+    const gz::math::AxisAlignedBox &_bbox,
+    const gz::math::Pose3d &_pose)
 {
   auto center = _bbox.Center();
 
   // Get the 8 corners of the bounding box.
-  std::vector<ignition::math::Vector3d> vertices;
-  vertices.push_back(center + ignition::math::Vector3d(-_bbox.XLength()/2.0,
+  std::vector<gz::math::Vector3d> vertices;
+  vertices.push_back(center + gz::math::Vector3d(-_bbox.XLength()/2.0,
                                                        _bbox.YLength()/2.0,
                                                        _bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(_bbox.XLength()/2.0,
                                                        _bbox.YLength()/2.0,
                                                        _bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(-_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(-_bbox.XLength()/2.0,
                                                        -_bbox.YLength()/2.0,
                                                        _bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(_bbox.XLength()/2.0,
                                                        -_bbox.YLength()/2.0,
                                                        _bbox.ZLength()/2.0));
 
-  vertices.push_back(center + ignition::math::Vector3d(-_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(-_bbox.XLength()/2.0,
                                                        _bbox.YLength()/2.0,
                                                        -_bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(_bbox.XLength()/2.0,
                                                        _bbox.YLength()/2.0,
                                                        -_bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(-_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(-_bbox.XLength()/2.0,
                                                        -_bbox.YLength()/2.0,
                                                        -_bbox.ZLength()/2.0));
-  vertices.push_back(center + ignition::math::Vector3d(_bbox.XLength()/2.0,
+  vertices.push_back(center + gz::math::Vector3d(_bbox.XLength()/2.0,
                                                        -_bbox.YLength()/2.0,
                                                        -_bbox.ZLength()/2.0));
 
@@ -206,8 +227,8 @@ ignition::math::AxisAlignedBox transformAxisAlignedBox(
     v = _pose.Rot() * v + _pose.Pos();
   }
 
-  ignition::math::Vector3d min = vertices[0];
-  ignition::math::Vector3d max = vertices[0];
+  gz::math::Vector3d min = vertices[0];
+  gz::math::Vector3d max = vertices[0];
 
   // find min / max of vertices
   for (unsigned int i = 1; i < vertices.size(); ++i)
@@ -227,8 +248,151 @@ ignition::math::AxisAlignedBox transformAxisAlignedBox(
     if (max.Z() < v.Z())
       max.Z() = v.Z();
   }
-  return ignition::math::AxisAlignedBox(min, max);
+  return gz::math::AxisAlignedBox(min, max);
 }
+
+/////////////////////////////////////////////////
+Image convertRGBToBayer(const Image &_image, PixelFormat _bayerFormat)
+{
+  const unsigned char *sourceImageData = _image.Data<unsigned char>();
+
+  unsigned int width = _image.Width();
+  unsigned int height = _image.Height();
+
+  Image destImage(width, height, _bayerFormat);
+  unsigned char *destImageData = destImage.Data<unsigned char>();
+
+  if (_bayerFormat == PF_BAYER_RGGB8)
+  {
+    for (unsigned int i=0; i < width; i++)
+    {
+      for (unsigned int j=0; j < height; j++)
+      {
+        if (j%2)
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+2];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+        }
+        else
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+0];
+          }
+        }
+      }
+    }
+  }
+
+  else if (_bayerFormat == PF_BAYER_BGGR8)
+  {
+    for (unsigned int i=0; i < width; i++)
+    {
+      for (unsigned int j=0; j < height; j++)
+      {
+        if (j%2)
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+0];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+        }
+        else
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+2];
+          }
+        }
+      }
+    }
+  }
+
+  else if (_bayerFormat == PF_BAYER_GBRG8)
+  {
+    for (unsigned int i=0; i < width; i++)
+    {
+      for (unsigned int j=0; j < height; j++)
+      {
+        if (j%2)
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+2];
+          }
+        }
+        else
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+0];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+        }
+      }
+    }
+  }
+
+  else if (_bayerFormat == PF_BAYER_GRBG8)
+  {
+    for (unsigned int i=0; i < width; i++)
+    {
+      for (unsigned int j=0; j < height; j++)
+      {
+        if (j%2)
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+0];
+          }
+        }
+        else
+        {
+          if (i%2)
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+2];
+          }
+          else
+          {
+            destImageData[i+j*width] = sourceImageData[i*3+j*width*3+1];
+          }
+        }
+      }
+    }
+  }
+
+  return destImage;
+}
+
 }
 }
 }

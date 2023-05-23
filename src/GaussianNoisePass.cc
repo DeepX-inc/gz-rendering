@@ -16,17 +16,13 @@
  */
 
 
-#include "ignition/rendering/GaussianNoisePass.hh"
+#include "gz/rendering/GaussianNoisePass.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-GaussianNoisePass::GaussianNoisePass()
-{
-}
+GaussianNoisePass::GaussianNoisePass() = default;
 
 //////////////////////////////////////////////////
-GaussianNoisePass::~GaussianNoisePass()
-{
-}
+GaussianNoisePass::~GaussianNoisePass() = default;

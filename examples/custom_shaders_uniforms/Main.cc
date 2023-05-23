@@ -33,14 +33,14 @@
 #include <iostream>
 #include <vector>
 
-#include <ignition/common/Console.hh>
-#include <ignition/rendering.hh>
+#include <gz/common/Console.hh>
+#include <gz/rendering.hh>
 
 #include "example_config.hh"
 
 #include "GlutWindow.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 const std::string vertexShaderGLSLFile = "vertex_shader.glsl";
@@ -49,13 +49,18 @@ const std::string fragmentShaderGLSLFile = "fragment_shader.glsl";
 const std::string vertexShaderGLSL330File = "vertex_shader_330.glsl";
 const std::string fragmentShaderGLSL330File = "fragment_shader_330.glsl";
 
+const std::string vertexShaderMetalFile = "vertex_shader.metal";
+const std::string fragmentShaderMetalFile = "fragment_shader.metal";
+
 //! [init shaders variables]
 
 const std::string RESOURCE_PATH =
-    ignition::common::joinPaths(std::string(PROJECT_BINARY_PATH), "media");
+    gz::common::joinPaths(std::string(PROJECT_BINARY_PATH), "media");
 
 //////////////////////////////////////////////////
-void buildScene(ScenePtr _scene, const std::string &_engineName)
+void buildScene(ScenePtr _scene,
+    const std::string &_engineName,
+    const std::map<std::string, std::string>& _params)
 {
   // initialize _scene
   _scene->SetAmbientLight(0.3, 0.3, 0.3);
@@ -72,8 +77,17 @@ void buildScene(ScenePtr _scene, const std::string &_engineName)
   std::string fragmentShaderFile;
   if (_engineName == "ogre2")
   {
-    vertexShaderFile = vertexShaderGLSL330File;
-    fragmentShaderFile = fragmentShaderGLSL330File;
+    auto it = _params.find("metal");
+    if (it != _params.end() && it->second == "1")
+    {
+      vertexShaderFile = vertexShaderMetalFile;
+      fragmentShaderFile = fragmentShaderMetalFile;
+    }
+    else
+    {
+      vertexShaderFile = vertexShaderGLSL330File;
+      fragmentShaderFile = fragmentShaderGLSL330File;
+    }
   }
   else
   {
@@ -83,15 +97,15 @@ void buildScene(ScenePtr _scene, const std::string &_engineName)
 
   // create shader materials
   // path to look for vertex and fragment shader parameters
-  std::string vertexShaderPath = ignition::common::joinPaths(
+  std::string vertexShaderPath = gz::common::joinPaths(
       RESOURCE_PATH, vertexShaderFile);
 
-  std::string fragmentShaderPath = ignition::common::joinPaths(
+  std::string fragmentShaderPath = gz::common::joinPaths(
       RESOURCE_PATH, fragmentShaderFile);
 
   //! [add shader to visual]
   // create shader material
-  ignition::rendering::MaterialPtr shader = _scene->CreateMaterial();
+  gz::rendering::MaterialPtr shader = _scene->CreateMaterial();
   shader->SetVertexShader(vertexShaderPath);
   shader->SetFragmentShader(fragmentShaderPath);
 
@@ -112,7 +126,7 @@ void buildScene(ScenePtr _scene, const std::string &_engineName)
   camera->SetImageHeight(600);
   camera->SetAntiAliasing(2);
   camera->SetAspectRatio(1.333);
-  camera->SetHFOV(IGN_PI / 2);
+  camera->SetHFOV(GZ_PI / 2);
   root->AddChild(camera);
 
   // track target
@@ -132,7 +146,7 @@ CameraPtr createCamera(const std::string &_engineName,
     return CameraPtr();
   }
   ScenePtr scene = engine->CreateScene("scene");
-  buildScene(scene, _engineName);
+  buildScene(scene, _engineName, _params);
 
   // return camera sensor
   SensorPtr sensor = scene->SensorByName("camera");
@@ -173,9 +187,7 @@ int main(int _argc, char** _argv)
       if (engineName.compare("ogre2") == 0
           && graphicsApi == GraphicsAPI::METAL)
       {
-        // \todo(anyone) uncomment once metal shaders are available
-        // params["metal"] = "1";
-        ignerr << "Metal shaders are not implemented yet. Using GLSL" << std::endl;
+        params["metal"] = "1";
       }
 
       CameraPtr camera = createCamera(engineName, params);

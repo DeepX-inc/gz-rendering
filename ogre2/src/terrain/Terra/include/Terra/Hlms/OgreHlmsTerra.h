@@ -56,11 +56,12 @@ namespace Ogre
     */
     class HlmsTerra : public HlmsPbs
     {
+    protected:
         MovableObject const *mLastMovableObject;
-        DescriptorSetSampler const *mTerraDescSetSampler;
 
         FastArray<Terra *> mLinkedTerras;
 
+    protected:
         virtual HlmsDatablock* createDatablockImpl( IdString datablockName,
                                                     const HlmsMacroblock *macroblock,
                                                     const HlmsBlendblock *blendblock,
@@ -94,6 +95,10 @@ namespace Ogre
 
         virtual void _changeRenderSystem( RenderSystem *newRs );
 
+        virtual void analyzeBarriers( BarrierSolver &barrierSolver,
+                                      ResourceTransitionArray &resourceTransitions,
+                                      Camera *renderingCamera, const bool bCasterPass );
+
         virtual uint32 fillBuffersFor( const HlmsCache *cache, const QueuedRenderable &queuedRenderable,
                                        bool casterPass, uint32 lastCacheHash,
                                        uint32 lastTextureHash );
@@ -109,7 +114,7 @@ namespace Ogre
 
         static void getDefaultPaths( String& outDataFolderPath, StringVector& outLibraryFoldersPaths );
 
-#if !OGRE_NO_JSON && defined( IGN_TERRA_JSON_ENABLED )
+#if !OGRE_NO_JSON && defined( GZ_TERRA_JSON_ENABLED )
         /// @copydoc Hlms::_loadJson
         virtual void _loadJson( const rapidjson::Value &jsonValue, const HlmsJson::NamedBlocks &blocks,
                                 HlmsDatablock *datablock, const String &resourceGroup,

@@ -1,7 +1,7 @@
 \page installation Installation
 
-These instructions are for installing only Ignition Rendering.
-If you're interested in using all the Ignition libraries, check out this [Ignition installation](https://ignitionrobotics.org/docs/latest/install).
+These instructions are for installing only Gazebo Rendering.
+If you're interested in using all the Gazebo libraries, check out this [Gazebo installation](https://gazebosim.org/docs/latest/install).
 
 We recommend following the Binary Install instructions to get up and running as quickly and painlessly as possible.
 
@@ -31,7 +31,7 @@ wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 Install:
 ```
 sudo apt-get update
-sudo apt-get install libignition-rendering<#>-dev
+sudo apt-get install libgz-rendering<#>-dev
 ```
 
 Be sure to replace `<#>` with a number value, such as `1` or `2`, depending on which version you need.
@@ -40,7 +40,7 @@ Be sure to replace `<#>` with a number value, such as `1` or `2`, depending on w
 
 ### Prerequisites
 
-Ubuntu Bionic 18.04 or above:
+Ubuntu Focal 20.04 or above:
 
 Install dependencies:
 ```
@@ -49,7 +49,6 @@ sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `ls
 wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 sudo apt update
 sudo apt install -y \
-    g++-8 \
     cmake \
     pkg-config \
     git \
@@ -58,16 +57,15 @@ sudo apt install -y \
     freeglut3-dev \
     libxmu-dev \
     libxi-dev \
-    libignition-cmake2-dev \
-    libignition-math6-dev \
-    libignition-common4-dev \
-    libignition-plugin-dev
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8
+    libgz-cmake3-dev \
+    libgz-math7-dev \
+    libgz-common5-dev \
+    libgz-plugin2-dev
 ```
 
 ### Supported Rendering Engines
 
-Ignition Rendering will look for rendering libraries installed in the system and
+Gazebo Rendering will look for rendering libraries installed in the system and
 build the relevant plugins if dependencies are found.
 
 **OGRE 1.x**
@@ -76,7 +74,7 @@ build the relevant plugins if dependencies are found.
 sudo apt-get install libogre-1.9-dev
 ```
 
-**OGRE 2.x (supported in Versions >= ign-rendering1)**
+**OGRE 2.x (supported in Versions >= gz-rendering1)**
 
 Add OSRF packages if you have not done so already:
 ```
@@ -100,14 +98,14 @@ CUDA: http://docs.nvidia.com/cuda
 OptiX: https://developer.nvidia.com/optix
 
 Update `LD_LIBRARY_PATH` and add an `OPTIX_INSTALL_DIR` environment variables
-so that ign-rendering can find Optix, e.g. if you installed version 4.0.2 in HOME/optix:
+so that gz-rendering can find Optix, e.g. if you installed version 4.0.2 in HOME/optix:
 ```
 export LD_LIBRARY_PATH=${HOME}/optix/NVIDIA-OptiX-SDK-4.0.2-linux64/lib64:${LD_LIBRARY_PATH}
 export OPTIX_INSTALL_DIR=${HOME}/optix/NVIDIA-OptiX-SDK-4.0.2-linux64
 ```
 
 Note: If you encounter errors about different exception specifiers in optix math
-when building Ign Rendering OptiX plugin, edit
+when building Gazebo Rendering OptiX plugin, edit
 `[optix_install_dir]/include/optixu/optixu_math_namespace.h` and comment
 out the section that defines `fminf`, fmaxf, and `copysignf` (for optix
 sdk 4.0.2, comment out lines 167-206).
@@ -117,12 +115,12 @@ sdk 4.0.2, comment out lines 167-206).
 1. Clone the repository
   ```
   # Optionally, append `-b ign-rendering#` (replace # with a number) to check out a specific version
-  git clone http://github.com/ignitionrobotics/ign-rendering
+  git clone http://github.com/gazebosim/gz-rendering
   ```
 
 2. Configure and build
   ```
-  cd ign-rendering
+  cd gz-rendering
   mkdir build
   cd build
   cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install/dir
@@ -141,19 +139,19 @@ On Windows, only OGRE 1 is currently supported.
 
 ## Prerequisites
 
-First, follow the [ign-cmake](https://github.com/ignitionrobotics/ign-cmake) tutorial for installing Conda, Visual Studio, CMake, and other prerequisites, and also for creating a Conda environment.
+First, follow the [gz-cmake](https://github.com/gazebosim/gz-cmake) tutorial for installing Conda, Visual Studio, CMake, and other prerequisites, and also for creating a Conda environment.
 
 Navigate to ``condabin`` if necessary to use the ``conda`` command (i.e., if Conda is not in your `PATH` environment variable. You can find the location of ``condabin`` in Anaconda Prompt, ``where conda``).
 
 Create if necessary, and activate a Conda environment:
 ```
-conda create -n ign-ws
-conda activate ign-ws
+conda create -n gz-ws
+conda activate gz-ws
 ```
 
 ## Binary Installation
 
-`libignition-rendering<#>` Conda feedstock is not yet available, pending [conda-forge/staged-recipes#13551](https://github.com/conda-forge/staged-recipes/issues/13551).
+`libgz-rendering<#>` Conda feedstock is not yet available, pending [conda-forge/staged-recipes#13551](https://github.com/conda-forge/staged-recipes/issues/13551).
 
 ## Source Installation
 
@@ -164,27 +162,27 @@ This assumes you have created and activated a Conda environment while installing
   conda install ogre --channel conda-forge
   ```
 
-2. Install Ignition dependencies:
+2. Install Gazebo dependencies:
 
   You can view available versions and their dependencies:
   ```
-  conda search libignition-rendering* --channel conda-forge --info
+  conda search libgz-rendering* --channel conda-forge --info
   ```
 
   Install dependencies, replacing `<#>` with the desired versions:
   ```
-  conda install libignition-cmake<#> libignition-common<#> libignition-math<#> libignition-plugin<#> --channel conda-forge
+  conda install libgz-cmake<#> libgz-common<#> libgz-math<#> libgz-plugin<#> --channel conda-forge
   ```
 
 3. Navigate to where you would like to build the library, and clone the repository.
   ```
   # Optionally, append `-b ign-rendering#` (replace # with a number) to check out a specific version
-  git clone https://github.com/ignitionrobotics/ign-rendering.git
+  git clone https://github.com/gazebosim/gz-rendering.git
   ```
 
 4. Configure and build
   ```
-  cd ign-rendering
+  cd gz-rendering
   mkdir build
   cd build
   cmake .. -DBUILD_TESTING=OFF  # Optionally, -DCMAKE_INSTALL_PREFIX=path\to\install
@@ -206,9 +204,9 @@ On macOS, add OSRF packages:
   brew tap osrf/simulation
   ```
 
-Install Ignition Rendering:
+Install Gazebo Rendering:
   ```
-  brew install ignition-rendering<#>
+  brew install gz-rendering<#>
   ```
 
 Be sure to replace `<#>` with a number value, such as 5 or 6, depending on
@@ -218,21 +216,21 @@ which version you need.
 
 1. Clone the repository
   ```
-  git clone https://github.com/ignitionrobotics/ign-rendering -b ign-rendering<#>
+  git clone https://github.com/gazebosim/gz-rendering -b ign-rendering<#>
   ```
   Be sure to replace `<#>` with a number value, such as 5 or 6, depending on
   which version you need.
 
 2. Install dependencies
   ```
-  brew install --only-dependencies ignition-rendering<#>
+  brew install --only-dependencies gz-rendering<#>
   ```
   Be sure to replace `<#>` with a number value, such as 5 or 6, depending on
   which version you need.
 
 3. Configure and build
   ```
-  cd ign-rendering
+  cd gz-rendering
   mkdir build
   cd build
   cmake ..
@@ -270,7 +268,41 @@ Tests can be run by building the `test` target:
   make test
   ```
 
-To run tests specific to a render engine, set the `RENDER_ENGINE_VALUES` environment variable, e.g.
+Most tests can be run against multiple render engine configurations (if available).
+To control the testing configuration, use the following environment variables:
+
   ```
-  RENDER_ENGINE_VALUES=ogre2 make test
+  # Specify the rendering engine to use (ogre, ogre2, optix)
+  GZ_ENGINE_TO_TEST=ogre2 
+
+  # Specify the ogre2 backend to use (vulkan, gl3plus, metal (macOS))
+  GZ_ENGINE_BACKEND=vulkan
+
+  # Specify if using "headless mode" (EGL or vulkan NULL window)
+  GZ_ENGINE_HEADLESS=1
+  ```
+
+A full invocation of a test would be
+  ```
+  GZ_ENGINE_TO_TEST=ogre2 GZ_ENGINE_BACKEND=gl3plus ./bin/UNIT_Camera_TEST
+  ```
+
+Additionally, each test is registered with `ctest` for each engine/backend configuration
+available at build time.  These can then be filtered with the `ctest` command line.
+
+  ```
+  # See a list of all available tests
+  ctest -N
+
+  # Run all ogre2 tests (verbose)
+  ctest -R ogre2 -V
+
+  # Run all ogre2/vulkan tests (verbose)
+  ctest -R ogre2_vulkan -V
+
+  # Run all OpenGL tests (verbose)
+  ctest -R gl3plus -V
+
+  # Run all INTEGRATION tests (verbose)
+  ctest -R INTEGRATION -V
   ```

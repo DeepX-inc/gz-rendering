@@ -16,8 +16,8 @@
 */
 #include "Ogre2BoundingBoxMaterialSwitcher.hh"
 
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -31,7 +31,7 @@
   #pragma warning(pop)
 #endif
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /////////////////////////////////////////////////
@@ -42,7 +42,7 @@ Ogre2BoundingBoxMaterialSwitcher::Ogre2BoundingBoxMaterialSwitcher(
 
   // plain material to switch item's material
   Ogre::ResourcePtr res =
-    Ogre::MaterialManager::getSingleton().load("ign-rendering/plain_color",
+    Ogre::MaterialManager::getSingleton().load("gz-rendering/plain_color",
         Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
   this->plainMaterial = res.staticCast<Ogre::Material>();
@@ -54,7 +54,7 @@ Ogre2BoundingBoxMaterialSwitcher::Ogre2BoundingBoxMaterialSwitcher(
   if (!this->plainOverlayMaterial->getTechnique(0) ||
       !this->plainOverlayMaterial->getTechnique(0)->getPass(0))
   {
-    ignerr << "Problem creating bounding box camera overlay material"
+    gzerr << "Problem creating bounding box camera overlay material"
         << std::endl;
     return;
   }
@@ -108,7 +108,7 @@ void Ogre2BoundingBoxMaterialSwitcher::cameraPreRenderScene(
       }
       catch(Ogre::Exception &e)
       {
-        ignerr << "Ogre Error:" << e.getFullDescription() << "\n";
+        gzerr << "Ogre Error:" << e.getFullDescription() << "\n";
       }
       Ogre2VisualPtr ogreVisual = std::dynamic_pointer_cast<Ogre2Visual>(
         visual);

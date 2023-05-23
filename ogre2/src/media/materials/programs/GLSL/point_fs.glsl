@@ -15,16 +15,18 @@
  *
  */
 
-#version 330
+#version ogre_glsl_ver_330
 
-uniform vec4 color;
+vulkan_layout( location = 0 )
+in block
+{
+  vec3 ptColor;
+} inPs;
 
+vulkan_layout( location = 0 )
 out vec4 fragColor;
 
 void main()
 {
-  // todo(anyone) update Ogre2DynamicRenderable to support vertex coloring
-  // so we can set color using the line below
-  // fragColor = gl_Color;
-  fragColor = color;
+  fragColor = vec4(inPs.ptColor.x, inPs.ptColor.y, inPs.ptColor.z, 1);
 }

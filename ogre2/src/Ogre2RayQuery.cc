@@ -15,16 +15,20 @@
  *
  */
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/Mesh.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/common/SubMesh.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Mesh.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/common/SubMesh.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2RayQuery.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2SelectionBuffer.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2DepthCamera.hh"
+#include "gz/rendering/ogre2/Ogre2ObjectInterface.hh"
+#include "gz/rendering/ogre2/Ogre2RayQuery.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2SegmentationCamera.hh"
+#include "gz/rendering/ogre2/Ogre2SelectionBuffer.hh"
+#include "gz/rendering/ogre2/Ogre2ThermalCamera.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -39,7 +43,7 @@
 #endif
 
 /// \brief Private data class for Ogre2RayQuery
-class ignition::rendering::Ogre2RayQueryPrivate
+class gz::rendering::Ogre2RayQueryPrivate
 {
   /// \brief Ogre ray scene query object for computing intersection.
   public: Ogre::RaySceneQuery *rayQuery = nullptr;
@@ -54,7 +58,7 @@ class ignition::rendering::Ogre2RayQueryPrivate
   public: std::thread::id threadId;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -75,9 +79,23 @@ void Ogre2RayQuery::SetFromCamera(const CameraPtr &_camera,
 {
   // convert to nomalized screen pos for ogre
   math::Vector2d screenPos((_coord.X() + 1.0) / 2.0, (_coord.Y() - 1.0) / -2.0);
+
   Ogre2CameraPtr camera = std::dynamic_pointer_cast<Ogre2Camera>(_camera);
-  Ogre::Ray ray =
-      camera->ogreCamera->getCameraToViewportRay(screenPos.X(), screenPos.Y());
+  if (camera)
+  {
+    this->dataPtr->camera = camera;
+  }
+
+  Ogre2ObjectInterfacePtr ogre2ObjectInterface =
+      std::dynamic_pointer_cast<Ogre2ObjectInterface>(_camera);
+  if (!ogre2ObjectInterface)
+  {
+    gzwarn << "Camera does not support ray query\n";
+    return;
+  }
+
+  Ogre::Ray ray = ogre2ObjectInterface->OgreCamera()->getCameraToViewportRay(
+      screenPos.X(), screenPos.Y());
 
   auto originMath = Ogre2Conversions::Convert(ray.getOrigin());
   if (originMath.IsFinite())
@@ -86,8 +104,8 @@ void Ogre2RayQuery::SetFromCamera(const CameraPtr &_camera,
   }
   else
   {
-    ignwarn << "Attempted to set non-finite origin from camera ["
-            << camera->Name() << "]" << std::endl;
+    gzwarn << "Attempted to set non-finite origin from camera ["
+           << camera->Name() << "]" << std::endl;
   }
 
   auto directionMath = Ogre2Conversions::Convert(ray.getDirection());
@@ -97,26 +115,21 @@ void Ogre2RayQuery::SetFromCamera(const CameraPtr &_camera,
   }
   else
   {
-    ignwarn << "Attempted to set non-finite direction from camera ["
-            << camera->Name() << "]" << std::endl;
+    gzwarn << "Attempted to set non-finite direction from camera ["
+           << camera->Name() << "]" << std::endl;
   }
 
-  this->dataPtr->camera = camera;
-
   this->dataPtr->imgPos.X() = static_cast<int>(
-      screenPos.X() * this->dataPtr->camera->ImageWidth());
+      screenPos.X() * _camera->ImageWidth());
   this->dataPtr->imgPos.Y() = static_cast<int>(
-      screenPos.Y() * this->dataPtr->camera->ImageHeight());
+      screenPos.Y() * _camera->ImageHeight());
 }
 
 //////////////////////////////////////////////////
-RayQueryResult Ogre2RayQuery::ClosestPoint()
+RayQueryResult Ogre2RayQuery::ClosestPoint(bool _forceSceneUpdate)
 {
   RayQueryResult result;
 
-#ifdef __APPLE__
-  return this->ClosestPointByIntersection();
-#else
   if (!this->dataPtr->camera ||
       !this->dataPtr->camera->Parent() ||
       std::this_thread::get_id() != this->dataPtr->threadId)
@@ -124,7 +137,7 @@ RayQueryResult Ogre2RayQuery::ClosestPoint()
     // use legacy method for backward compatibility if no camera is set or
     // camera is not attached in the scene tree or
     // this function is called from non-rendering thread
-    return this->ClosestPointByIntersection();
+    return this->ClosestPointByIntersection(_forceSceneUpdate);
   }
   else
   {
@@ -136,7 +149,6 @@ RayQueryResult Ogre2RayQuery::ClosestPoint()
 
     return this->ClosestPointBySelectionBuffer();
   }
-#endif
 }
 
 //////////////////////////////////////////////////
@@ -153,34 +165,49 @@ RayQueryResult Ogre2RayQuery::ClosestPointBySelectionBuffer()
       this->dataPtr->imgPos.X(), this->dataPtr->imgPos.Y(), ogreItem, point);
   result.distance = -1;
 
-  if (success && ogreItem)
+  if (success)
   {
-    if (!ogreItem->getUserObjectBindings().getUserAny().isEmpty() &&
-        ogreItem->getUserObjectBindings().getUserAny().getType() ==
-        typeid(unsigned int))
+    double distance = this->dataPtr->camera->WorldPosition().Distance(point)
+        - this->dataPtr->camera->NearClipPlane();
+    unsigned int objectId = 0;
+    if (ogreItem)
     {
-      auto userAny = ogreItem->getUserObjectBindings().getUserAny();
-      double distance = this->dataPtr->camera->WorldPosition().Distance(point)
-          - this->dataPtr->camera->NearClipPlane();
-      if (!std::isinf(distance))
+      if (!ogreItem->getUserObjectBindings().getUserAny().isEmpty() &&
+          ogreItem->getUserObjectBindings().getUserAny().getType() ==
+          typeid(unsigned int))
       {
-        result.distance = distance;
-        result.point = point;
-        result.objectId = Ogre::any_cast<unsigned int>(userAny);
+        auto userAny = ogreItem->getUserObjectBindings().getUserAny();
+        objectId = Ogre::any_cast<unsigned int>(userAny);
       }
+    }
+    else
+    {
+      // \todo(anyone) Change ExecuteQuery to return Ogre::MovableObject
+      // in gz-rendering8 so heightmaps can be included in the result
+    }
+    if (!std::isinf(distance))
+    {
+      result.distance = distance;
+      result.point = point;
+      result.objectId = objectId;
     }
   }
   return result;
 }
 
 //////////////////////////////////////////////////
-RayQueryResult Ogre2RayQuery::ClosestPointByIntersection()
+RayQueryResult Ogre2RayQuery::ClosestPointByIntersection(bool _forceSceneUpdate)
 {
   RayQueryResult result;
   Ogre2ScenePtr ogreScene =
       std::dynamic_pointer_cast<Ogre2Scene>(this->Scene());
   if (!ogreScene)
     return result;
+
+  if (_forceSceneUpdate)
+  {
+    ogreScene->OgreSceneManager()->updateSceneGraph();
+  }
 
   Ogre::Ray mouseRay(Ogre2Conversions::Convert(this->origin),
       Ogre2Conversions::Convert(this->direction));
@@ -242,11 +269,11 @@ RayQueryResult Ogre2RayQuery::ClosestPointByIntersection()
           if (indexCount <= k+2)
             continue;
 
-          ignition::math::Vector3d vertexA =
+          math::Vector3d vertexA =
             submesh->Vertex(submesh->Index(k));
-          ignition::math::Vector3d vertexB =
+          math::Vector3d vertexB =
             submesh->Vertex(submesh->Index(k+1));
-          ignition::math::Vector3d vertexC =
+          math::Vector3d vertexC =
             submesh->Vertex(submesh->Index(k+2));
 
           Ogre::Vector3 worldVertexA =

@@ -22,13 +22,14 @@
   #endif
   #include <windows.h>
 #endif
-#include <ignition/math/Helpers.hh>
-#include "ignition/rendering/ogre/OgreDepthCamera.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
+#include <gz/math/Helpers.hh>
+#include "gz/rendering/InstallationDirectories.hh"
+#include "gz/rendering/ogre/OgreDepthCamera.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
 
 /// \internal
 /// \brief Private data for the OgreDepthCamera class
-class ignition::rendering::OgreDepthCameraPrivate
+class gz::rendering::OgreDepthCameraPrivate
 {
   /// \brief The depth buffer
   public: float *depthBuffer = nullptr;
@@ -38,9 +39,6 @@ class ignition::rendering::OgreDepthCameraPrivate
 
   /// \brief Point cloud xyz data buffer
   public: float *pcdBuffer = nullptr;
-
-  /// \brief Point cloud view port
-  public: Ogre::Viewport *pcdViewport = nullptr;
 
   /// \brief Point cloud material
   public: MaterialPtr pcdMaterial = nullptr;
@@ -58,23 +56,23 @@ class ignition::rendering::OgreDepthCameraPrivate
   public: bool outputPoints = false;
 
   /// \brief maximum value used for data outside sensor range
-  public: float dataMaxVal = ignition::math::INF_D;
+  public: float dataMaxVal = gz::math::INF_D;
 
   /// \brief minimum value used for data outside sensor range
-  public: float dataMinVal = -ignition::math::INF_D;
+  public: float dataMinVal = -gz::math::INF_D;
 
   /// \brief Event used to signal rgb point cloud data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newRgbPointCloud;
 
   /// \brief Event used to signal depth data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newDepthFrame;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -110,14 +108,29 @@ void OgreDepthCamera::Destroy()
     this->dataPtr->colorBuffer = nullptr;
   }
 
+  if (this->dataPtr->pcdTexture)
+  {
+    this->dataPtr->pcdTexture->Destroy();
+    this->dataPtr->pcdTexture.reset();
+  }
+
+  if (this->dataPtr->colorTexture)
+  {
+    this->dataPtr->colorTexture->Destroy();
+    this->dataPtr->colorTexture.reset();
+  }
+
   if (!this->ogreCamera || !this->scene->IsInitialized())
     return;
+
+  this->DestroyPointCloudTexture();
+  this->DestroyDepthTexture();
 
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
   }
   else
   {
@@ -127,6 +140,9 @@ void OgreDepthCamera::Destroy()
       this->ogreCamera = nullptr;
     }
   }
+
+  // call base node destroy to remove parent
+  OgreNode::Destroy();
 }
 
 //////////////////////////////////////////////////
@@ -146,7 +162,7 @@ void OgreDepthCamera::CreateCamera()
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
   {
-    ignerr << "Scene manager cannot be obtained" << std::endl;
+    gzerr << "Scene manager cannot be obtained" << std::endl;
     return;
   }
 
@@ -154,7 +170,7 @@ void OgreDepthCamera::CreateCamera()
       this->name);
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
     return;
   }
 
@@ -166,7 +182,6 @@ void OgreDepthCamera::CreateCamera()
   this->ogreCamera->setFixedYawAxis(false);
 
   // TODO(anyone): provide api access
-  this->ogreCamera->setAutoAspectRatio(true);
   this->ogreCamera->setRenderingDistance(0);
   this->ogreCamera->setPolygonMode(Ogre::PM_SOLID);
   this->ogreCamera->setProjectionType(Ogre::PT_PERSPECTIVE);
@@ -205,9 +220,23 @@ void OgreDepthCamera::CreatePointCloudTexture()
 
   this->dataPtr->pcdMaterial = this->scene->CreateMaterial();
 
-  const char *env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+  const char *env = std::getenv("GZ_RENDERING_RESOURCE_PATH");
+
+  // TODO(CH3): Deprecated. Remove on tock.
+  if (!env)
+  {
+    env = std::getenv("IGN_RENDERING_RESOURCE_PATH");
+
+    if (env)
+    {
+      gzwarn << "Using deprecated environment variable "
+             << "[IGN_RENDERING_RESOURCE_PATH]. Please use "
+             << "[GZ_RENDERING_RESOURCE_PATH] instead." << std::endl;
+    }
+  }
+
   std::string resourcePath = (env) ? std::string(env) :
-      IGN_RENDERING_RESOURCE_PATH;
+      gz::rendering::getResourcePath();
 
   // path to look for vertex and fragment shader parameters
   std::string pcdVSPath = common::joinPaths(
@@ -223,12 +252,30 @@ void OgreDepthCamera::CreatePointCloudTexture()
   this->dataPtr->pcdTexture->PreRender();
 }
 
+//////////////////////////////////////////////////
+void OgreDepthCamera::DestroyPointCloudTexture()
+{
+  if (this->dataPtr->pcdTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->dataPtr->pcdTexture.get())
+      ->Destroy();
+    this->dataPtr->pcdTexture.reset();
+  }
+
+  if (this->dataPtr->colorTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->dataPtr->colorTexture.get())
+      ->Destroy();
+    this->dataPtr->colorTexture.reset();
+  }
+}
+
 /////////////////////////////////////////////////
 void OgreDepthCamera::CreateDepthTexture()
 {
   if (this->ogreCamera == nullptr)
   {
-    ignerr << "Ogre camera cannot be created" << std::endl;
+    gzerr << "Ogre camera cannot be created" << std::endl;
   }
 
   if (this->depthTexture == nullptr)
@@ -245,12 +292,22 @@ void OgreDepthCamera::CreateDepthTexture()
     this->depthTexture->SetHeight(1);
   }
 
-  double ratio = static_cast<double>(this->ImageWidth()) /
-                 static_cast<double>(this->ImageHeight());
+  const double aspectRatio = this->AspectRatio();
+  const double angle = this->HFOV().Radian();
+  const double vfov =
+    this->LimitFOV(2.0 * atan(tan(angle / 2.0) / aspectRatio));
+  this->ogreCamera->setFOVy(Ogre::Radian((Ogre::Real)vfov));
+  this->ogreCamera->setAspectRatio((Ogre::Real)aspectRatio);
+}
 
-  double vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) / ratio);
-  this->ogreCamera->setAspectRatio(ratio);
-  this->ogreCamera->setFOVy(Ogre::Radian(this->LimitFOV(vfov)));
+//////////////////////////////////////////////////
+void OgreDepthCamera::DestroyDepthTexture()
+{
+  if (this->depthTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->depthTexture.get())->Destroy();
+    this->depthTexture.reset();
+  }
 }
 
 //////////////////////////////////////////////////
@@ -490,16 +547,16 @@ void OgreDepthCamera::PostRender()
         "PF_FLOAT32_RGBA");
 
     // Uncomment to debug xyz output
-    // igndbg << "wxh: " << width << " x " << height << std::endl;
+    // gzdbg << "wxh: " << width << " x " << height << std::endl;
     // for (unsigned int i = 0; i < height; ++i)
     // {
     //   for (unsigned int j = 0; j < width; ++j)
     //   {
-    //     igndbg << "[" << this->dataPtr->pcdBuffer[i*width*4+j*4] << "]"
+    //     gzdbg << "[" << this->dataPtr->pcdBuffer[i*width*4+j*4] << "]"
     //       << "[" << this->dataPtr->pcdBuffer[i*width*4+j*4+1] << "]"
     //       << "[" << this->dataPtr->pcdBuffer[i*width*4+j*4+2] << "],";
     //   }
-    //   igndbg << std::endl;
+    //   gzdbg << std::endl;
     // }
 
     // Uncommnet to debug color output
@@ -512,11 +569,11 @@ void OgreDepthCamera::PostRender()
     //     unsigned int r = *rgba >> 24 & 0xFF;
     //     unsigned int g = *rgba >> 16 & 0xFF;
     //     unsigned int b = *rgba >> 8 & 0xFF;
-    //     igndbg << "[" << r << "]"
+    //     gzdbg << "[" << r << "]"
     //            << "[" << g << "]"
     //            << "[" << b << "],";
     //   }
-    //   igndbg << std::endl;
+    //   gzdbg << std::endl;
     // }
   }
 }
@@ -528,7 +585,7 @@ const float *OgreDepthCamera::DepthData() const
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
+common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {
@@ -536,7 +593,7 @@ ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewRgbPointCloud(
+common::ConnectionPtr OgreDepthCamera::ConnectNewRgbPointCloud(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {
@@ -552,7 +609,7 @@ RenderTargetPtr OgreDepthCamera::RenderTarget() const
 //////////////////////////////////////////////////
 double OgreDepthCamera::LimitFOV(const double _fov)
 {
-  return std::min(std::max(0.001, _fov), IGN_PI * 0.999);
+  return std::min(std::max(0.001, _fov), GZ_PI * 0.999);
 }
 
 //////////////////////////////////////////////////
@@ -581,4 +638,10 @@ double OgreDepthCamera::FarClipPlane() const
     return this->ogreCamera->getFarClipDistance();
   else
     return 0;
+}
+
+//////////////////////////////////////////////////
+Ogre::Camera *OgreDepthCamera::Camera() const
+{
+  return this->ogreCamera;
 }

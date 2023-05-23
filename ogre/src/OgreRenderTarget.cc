@@ -19,7 +19,7 @@
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wunused-parameter"
 #else
-# pragma warning(push, 0)
+# pragma warning(push)
 # pragma warning(disable: 4005)
 # pragma warning(disable: 4275)
 #endif
@@ -33,21 +33,24 @@
 #endif
 
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/Material.hh"
+#include "gz/rendering/Material.hh"
 
-#include "ignition/rendering/ogre/OgreRenderEngine.hh"
-#include "ignition/rendering/ogre/OgreRenderPass.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreRenderTarget.hh"
-#include "ignition/rendering/ogre/OgreRTShaderSystem.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreRenderEngine.hh"
+#include "gz/rendering/ogre/OgreRenderPass.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreRenderTarget.hh"
+#include "gz/rendering/ogre/OgreRTShaderSystem.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/Utils.hh"
 
-using namespace ignition;
+#include <string.h>
+
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -61,10 +64,8 @@ OgreRenderTarget::OgreRenderTarget()
 //////////////////////////////////////////////////
 OgreRenderTarget::~OgreRenderTarget()
 {
-  // TODO(anyone): clean up check null
-
-  OgreRTShaderSystem::Instance()->DetachViewport(this->ogreViewport,
-      this->scene);
+  GZ_ASSERT(this->ogreViewport == nullptr,
+            "OgreRenderTarget::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -73,19 +74,38 @@ void OgreRenderTarget::Copy(Image &_image) const
   if (nullptr == this->RenderTarget())
     return;
 
-  // TODO(anyone): handle Bayer conversions
   // TODO(anyone): handle ogre version differences
 
   if (_image.Width() != this->width || _image.Height() != this->height)
   {
-    ignerr << "Invalid image dimensions" << std::endl;
+    gzerr << "Invalid image dimensions" << std::endl;
     return;
   }
 
-  void* data = _image.Data();
-  Ogre::PixelFormat imageFormat = OgreConversions::Convert(_image.Format());
-  Ogre::PixelBox ogrePixelBox(this->width, this->height, 1, imageFormat, data);
-  this->RenderTarget()->copyContentsToMemory(ogrePixelBox);
+  Ogre::PixelFormat imageFormat;
+  if ((_image.Format() == PF_BAYER_RGGB8) ||
+      (_image.Format() == PF_BAYER_BGGR8) ||
+      (_image.Format() == PF_BAYER_GBRG8) ||
+      (_image.Format() == PF_BAYER_GRBG8))
+  {
+    // create tmp color image to get data from gpu
+    imageFormat = OgreConversions::Convert(PF_R8G8B8);
+    Image colorImage(this->width, this->height, PF_R8G8B8);
+    void *data =  colorImage.Data();
+    Ogre::PixelBox ogrePixelBox(
+        this->width, this->height, 1, imageFormat, data);
+    this->RenderTarget()->copyContentsToMemory(ogrePixelBox);
+    // convert color image to bayer image
+    _image = gz::rendering::convertRGBToBayer(colorImage, _image.Format());
+  }
+  else
+  {
+    imageFormat = OgreConversions::Convert(_image.Format());
+    void *data = _image.Data();
+    Ogre::PixelBox ogrePixelBox(
+        this->width, this->height, 1, imageFormat, data);
+    this->RenderTarget()->copyContentsToMemory(ogrePixelBox);
+  }
 }
 
 //////////////////////////////////////////////////
@@ -250,7 +270,7 @@ Ogre::Viewport *OgreRenderTarget::Viewport(const int _viewportId) const
 
   if (nullptr == ogreRenderTarget)
   {
-    ignerr << "Failed to get viewport: null render target" << std::endl;
+    gzerr << "Failed to get viewport: null render target" << std::endl;
     return nullptr;
   }
 
@@ -264,7 +284,7 @@ Ogre::Viewport *OgreRenderTarget::AddViewport(Ogre::Camera *_camera)
 
   if (nullptr == ogreRenderTarget)
   {
-    ignerr << "Failed to add viewport: null render target" << std::endl;
+    gzerr << "Failed to add viewport: null render target" << std::endl;
     return nullptr;
   }
 
@@ -278,7 +298,7 @@ void OgreRenderTarget::SetAutoUpdated(const bool _value)
 
   if (nullptr == ogreRenderTarget)
   {
-    ignerr << "Failed to set auto update: null render target" << std::endl;
+    gzerr << "Failed to set auto update: null render target" << std::endl;
     return;
   }
 
@@ -292,7 +312,7 @@ void OgreRenderTarget::SetUpdate(const bool _value)
 
   if (nullptr == ogreRenderTarget)
   {
-    ignerr << "Failed to set update: null render target" << std::endl;
+    gzerr << "Failed to set update: null render target" << std::endl;
     return;
   }
 
@@ -309,6 +329,8 @@ OgreRenderTexture::OgreRenderTexture()
 //////////////////////////////////////////////////
 OgreRenderTexture::~OgreRenderTexture()
 {
+  GZ_ASSERT(this->ogreTexture == nullptr,
+            "OgreRenderTexture::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -339,6 +361,8 @@ void OgreRenderTexture::DestroyTarget()
   if (nullptr == this->ogreTexture)
     return;
 
+  this->materialApplicator.reset();
+
   OgreRTShaderSystem::Instance()->DetachViewport(this->ogreViewport,
       this->scene);
 
@@ -351,6 +375,7 @@ void OgreRenderTexture::DestroyTarget()
   auto engine = OgreRenderEngine::Instance();
   engine->OgreRoot()->getRenderSystem()->_cleanupDepthBuffers(false);
 
+  this->ogreViewport = nullptr;
   this->ogreTexture = nullptr;
 }
 
@@ -358,7 +383,18 @@ void OgreRenderTexture::DestroyTarget()
 void OgreRenderTexture::BuildTarget()
 {
   Ogre::TextureManager &manager = Ogre::TextureManager::getSingleton();
-  Ogre::PixelFormat ogreFormat = OgreConversions::Convert(this->format);
+  Ogre::PixelFormat ogreFormat;
+  if ((this->format == PF_BAYER_RGGB8) ||
+      (this->format == PF_BAYER_BGGR8) ||
+      (this->format == PF_BAYER_GBRG8) ||
+      (this->format == PF_BAYER_GRBG8))
+  {
+    ogreFormat = OgreConversions::Convert(PF_R8G8B8);
+  }
+  else
+  {
+    ogreFormat = OgreConversions::Convert(this->format);
+  }
 
   // check if target fsaa is supported
   unsigned int fsaa = 0;
@@ -376,8 +412,8 @@ void OgreRenderTexture::BuildTarget()
     static bool ogreFSAAWarn = false;
     if (ogreFSAAWarn)
     {
-      ignwarn << "Anti-aliasing level of '" << this->antiAliasing << "' "
-              << "is not supported. Setting to 0" << std::endl;
+      gzwarn << "Anti-aliasing level of '" << this->antiAliasing << "' "
+             << "is not supported. Setting to 0" << std::endl;
       ogreFSAAWarn = true;
     }
   }
@@ -418,7 +454,7 @@ void OgreRenderTexture::Buffer(float *_buffer)
 
   if (nullptr == ogreRenderTarget)
   {
-    ignerr << "Failed to set buffer: null render target" << std::endl;
+    gzerr << "Failed to set buffer: null render target" << std::endl;
     return;
   }
 
@@ -475,7 +511,7 @@ void OgreRenderWindow::RebuildTarget()
 
   if (nullptr == window)
   {
-    ignerr << "Failed to cast render window." << std::endl;
+    gzerr << "Failed to cast render window." << std::endl;
     return;
   }
 
@@ -496,7 +532,7 @@ void OgreRenderWindow::BuildTarget()
 
   if (renderTargetName.empty())
   {
-    ignerr << "Failed to build target." << std::endl;
+    gzerr << "Failed to build target." << std::endl;
     return;
   }
 

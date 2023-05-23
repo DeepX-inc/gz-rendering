@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(ignition-rendering-waves)
+project(gz-rendering-waves)
 
 include_directories(SYSTEM
   ${PROJECT_BINARY_DIR}
 )
 
-find_package(ignition-rendering6 REQUIRED)
-find_package(ignition-common4 REQUIRED)
+find_package(gz-rendering7)
 
 set(TARGET_THIRD_PARTY_DEPENDS "")
 
@@ -51,8 +50,7 @@ endif()
 add_executable(waves Main.cc GlutWindow.cc)
 
 target_link_libraries(waves
-  ${IGNITION-RENDERING_LIBRARIES}
-  ${IGNITION-COMMON_LIBRARIES}
+  ${GZ-RENDERING_LIBRARIES}
   ${TARGET_THIRD_PARTY_DEPENDS}
 )
 

@@ -16,13 +16,13 @@
  */
 
 
-#include "ignition/rendering/BoundingBox.hh"
+#include "gz/rendering/BoundingBox.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
-class ignition::rendering::BoundingBoxPrivate
+class gz::rendering::BoundingBoxPrivate
 {
   /// \brief Center of the bounding box
   public: math::Vector3d center;
@@ -91,9 +91,7 @@ BoundingBox::BoundingBox() :
 }
 
 /////////////////////////////////////////////////
-BoundingBox::~BoundingBox()
-{
-}
+BoundingBox::~BoundingBox() = default;
 
 //////////////////////////////////////////////////
 BoundingBox::BoundingBox(const BoundingBox &_box)
