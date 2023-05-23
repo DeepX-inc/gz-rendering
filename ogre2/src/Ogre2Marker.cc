@@ -39,6 +39,7 @@
 #include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
 #include "gz/rendering/ogre2/Ogre2Scene.hh"
 #include "gz/rendering/ogre2/Ogre2Visual.hh"
+#include "ignition/rendering/ogre2/Ogre2Text.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)

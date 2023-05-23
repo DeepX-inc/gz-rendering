@@ -49,6 +49,7 @@
 #include "gz/rendering/ogre2/Ogre2SegmentationCamera.hh"
 #include "gz/rendering/ogre2/Ogre2Visual.hh"
 #include "gz/rendering/ogre2/Ogre2WireBox.hh"
+#include "ignition/rendering/ogre2/Ogre2Text.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
