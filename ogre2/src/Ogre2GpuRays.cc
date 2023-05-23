@@ -19,6 +19,7 @@
 #include <gz/math/Vector3.hh>
 
 #include <gz/common/Console.hh>
+#include <gz/common/Timer.hh>
 #include <gz/math/Helpers.hh>
 
 #include "gz/rendering/ogre2/Ogre2Camera.hh"
