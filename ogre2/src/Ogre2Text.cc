@@ -32,18 +32,18 @@
 #include <Overlay/OgreFont.h>
 #include <Overlay/OgreFontManager.h>
 
-#include "ignition/rendering/ogre2/Ogre2Text.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2Text.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
 
 #include <mutex>
 
 #define POS_TEX_BINDING    0
 #define COLOUR_BINDING     1
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-class ignition::rendering::Ogre2MovableText
+class gz::rendering::Ogre2MovableText
   : public Ogre::MovableObject, public Ogre::Renderable
 {
   /// \brief Constructor
@@ -63,7 +63,7 @@ class ignition::rendering::Ogre2MovableText
 
   /// \brief Set the text color.
   /// \param[in] _color Text color.
-  public: void SetColor(const ignition::math::Color &_color);
+  public: void SetColor(const gz::math::Color &_color);
 
   /// \brief Set the height of the character in meters.
   /// \param[in] _height Height of the characters.
@@ -90,7 +90,7 @@ class ignition::rendering::Ogre2MovableText
 
   /// \brief Get the axis aligned bounding box of the text.
   /// \return The axis aligned bounding box.
-  public: ignition::math::AxisAlignedBox AABB() const;
+  public: gz::math::AxisAlignedBox AABB() const;
 
   /// \brief Setup the geometry based on input text string.
   public: void SetupGeometry();
@@ -185,7 +185,7 @@ class ignition::rendering::Ogre2MovableText
   private: std::string text;
 
   /// \brief Text color
-  private: ignition::math::Color color;
+  private: gz::math::Color color;
 
   /// \brief Character height in meters
   private: float charHeight = 0.0;
@@ -208,7 +208,7 @@ class ignition::rendering::Ogre2MovableText
 };
 
 /// \brief Private data for the OgreText class.
-class ignition::rendering::Ogre2TextPrivate
+class gz::rendering::Ogre2TextPrivate
 {
   /// \brief Text materal
   public: Ogre2MaterialPtr material;
@@ -217,7 +217,7 @@ class ignition::rendering::Ogre2TextPrivate
   public: std::unique_ptr<Ogre2MovableText> ogreObj;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -256,7 +256,7 @@ void Ogre2MovableText::SetTextString(const std::string &_text)
 }
 
 //////////////////////////////////////////////////
-void Ogre2MovableText::SetColor(const ignition::math::Color &_color)
+void Ogre2MovableText::SetColor(const gz::math::Color &_color)
 {
   if (this->color != _color)
   {
@@ -322,13 +322,13 @@ void Ogre2MovableText::SetShowOnTop(const bool _onTop)
 }
 
 //////////////////////////////////////////////////
-ignition::math::AxisAlignedBox Ogre2MovableText::AABB() const
+gz::math::AxisAlignedBox Ogre2MovableText::AABB() const
 {
-  return ignition::math::AxisAlignedBox(
-      ignition::math::Vector3d(this->aabb->getMinimum().x,
+  return gz::math::AxisAlignedBox(
+      gz::math::Vector3d(this->aabb->getMinimum().x,
                     this->aabb->getMinimum().y,
                     this->aabb->getMinimum().z),
-      ignition::math::Vector3d(this->aabb->getMaximum().x,
+      gz::math::Vector3d(this->aabb->getMaximum().x,
                     this->aabb->getMaximum().y,
                     this->aabb->getMaximum().z));
 }
@@ -397,8 +397,8 @@ void Ogre2MovableText::SetFontNameImpl(const std::string &_newFontName)
 //////////////////////////////////////////////////
 void Ogre2MovableText::SetupGeometry()
 {
-  IGN_ASSERT(this->font, "font class member is null");
-  IGN_ASSERT(this->mHlmsDatablock, "datablock class member is null");
+  GZ_ASSERT(this->font, "font class member is null");
+  GZ_ASSERT(this->mHlmsDatablock, "datablock class member is null");
 
   Ogre::v1::VertexDeclaration *decl = nullptr;
   Ogre::v1::VertexBufferBinding *bind = nullptr;
@@ -436,7 +436,7 @@ void Ogre2MovableText::SetupGeometry()
   }
 
   if (!this->renderOp.vertexData)
-    this->renderOp.vertexData = new Ogre::v1::VertexData();
+    this->renderOp.vertexData = new Ogre::v1::VertexData(nullptr);
 
   this->renderOp.indexData = 0;
   this->renderOp.vertexData->vertexStart = 0;
@@ -480,7 +480,7 @@ void Ogre2MovableText::SetupGeometry()
   pVert = static_cast<float*>(ptbuf->lock(Ogre::v1::HardwareBuffer::HBL_DISCARD));
 
   // Derive space width from a capital A
-  if (ignition::math::equal(this->spaceWidth, 0.0f))
+  if (gz::math::equal(this->spaceWidth, 0.0f))
   {
     this->spaceWidth = this->font->getGlyphAspectRatio('A') *
         this->charHeight * 2.0;
@@ -730,8 +730,8 @@ void Ogre2MovableText::UpdateColors()
   Ogre::RGBA *pDest{nullptr};
   unsigned int i;
 
-  IGN_ASSERT(this->font, "font class member is null");
-  IGN_ASSERT(this->mHlmsDatablock, "Hlms datablock class member is null");
+  GZ_ASSERT(this->font, "font class member is null");
+  GZ_ASSERT(this->mHlmsDatablock, "Hlms datablock class member is null");
 
   // Convert to system-specific
   Ogre::ColourValue cv(this->color.R(), this->color.G(),
@@ -942,7 +942,7 @@ void Ogre2Text::SetTextString(const std::string &_text)
 }
 
 //////////////////////////////////////////////////
-void Ogre2Text::SetColor(const ignition::math::Color &_color)
+void Ogre2Text::SetColor(const gz::math::Color &_color)
 {
   BaseText::SetColor(_color);
   this->dataPtr->ogreObj->SetColor(_color);
@@ -985,7 +985,7 @@ void Ogre2Text::SetShowOnTop(const bool _onTop)
 }
 
 //////////////////////////////////////////////////
-ignition::math::AxisAlignedBox Ogre2Text::AABB() const
+gz::math::AxisAlignedBox Ogre2Text::AABB() const
 {
   return this->dataPtr->ogreObj->AABB();
 }

@@ -151,6 +151,9 @@ namespace gz
       // Documentation inherited.
       public: virtual double VerticalResolution() const override;
 
+      // Documentation inherited.
+      public: virtual void SetScanningPattern(const ScanningPattern _pattern) override;
+
       /// \brief maximum value used for data outside sensor range
       public: float dataMaxVal = gz::math::INF_D;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Open Source Robotics Foundation
+ * Copyright (C) 2022 Open Source Robotics Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,91 +14,6 @@
  * limitations under the License.
  *
  */
-#ifndef IGNITION_RENDERING_OGRE2_OGRE2TEXT_HH_
-#define IGNITION_RENDERING_OGRE2_OGRE2TEXT_HH_
 
-#include "ignition/rendering/config.hh"
-#include "ignition/rendering/base/BaseText.hh"
-#include "ignition/rendering/ogre2/Ogre2Object.hh"
-#include "ignition/rendering/ogre2/Ogre2Geometry.hh"
-#include "ignition/rendering/ogre2/Export.hh"
-
-namespace ignition
-{
-  namespace rendering
-  {
-    inline namespace IGNITION_RENDERING_VERSION_NAMESPACE {
-    //
-    class Ogre2MovableText;
-    class Ogre2TextPrivate;
-
-    /// \brief Ogre implementation of text geometry
-    class IGNITION_RENDERING_OGRE2_VISIBLE Ogre2Text
-        : public BaseText<Ogre2Geometry>
-    {
-      /// \brief Constructor
-      public: Ogre2Text();
-
-      /// \brief Destructor
-      public: virtual ~Ogre2Text();
-
-      // Documentation inherited
-      public: virtual void Init() override;
-
-      // Documentation inherited
-      public: virtual void PreRender() override;
-
-      // Documentation inherited
-      public: virtual Ogre::MovableObject *OgreObject() const override;
-
-      // Documentation inherited.
-      public: virtual MaterialPtr Material() const override;
-
-      // Documentation inherited.
-      public: virtual void SetMaterial(MaterialPtr _material, bool _unique)
-          override;
-
-      // Documentation inherited.
-      public: virtual void SetFontName(const std::string &_font) override;
-
-      // Documentation inherited.
-      public: virtual void SetTextString(const std::string &_text) override;
-
-      // Documentation inherited.
-      public: virtual void SetColor(const ignition::math::Color &_color)
-          override;
-
-      // Documentation inherited.
-      public: virtual void SetCharHeight(const float _height) override;
-
-      // Documentation inherited.
-      public: virtual void SetSpaceWidth(const float _width) override;
-
-      // Documentation inherited.
-      public: virtual void SetTextAlignment(
-                  const TextHorizontalAlign &_horizAlign,
-                  const TextVerticalAlign &_vertAlign) override;
-      // Documentation inherited.
-      public: virtual void SetBaseline(const float _baseline) override;
-
-      // Documentation inherited.
-      public: virtual void SetShowOnTop(const bool _onTop) override;
-
-      // Documentation inherited.
-      public: virtual ignition::math::AxisAlignedBox AABB() const override;
-
-      /// \brief Set material to text geometry.
-      /// \param[in] _material Ogre material.
-      protected: virtual void SetMaterialImpl(Ogre2MaterialPtr _material);
-
-      /// \brief Text should only be created by scene.
-      private: friend class OgreScene;
-
-      /// \internal
-      /// \brief Private data pointer
-      private: std::unique_ptr<Ogre2TextPrivate> dataPtr;
-    };
-    }
-  }
-}
-#endif
+#include <gz/rendering/ogre2/Ogre2Text.hh>
+#include <ignition/rendering/config.hh>

@@ -19,6 +19,7 @@
 #include <gz/math/Vector3.hh>
 
 #include <gz/common/Console.hh>
+#include <gz/common/Timer.hh>
 #include <gz/math/Helpers.hh>
 
 #include "gz/rendering/ogre2/Ogre2Camera.hh"
@@ -928,7 +929,7 @@ void Ogre2GpuRays::UpdateSampleTexture()
     auto livoxAvia = [arrayCount](double time)
     {
       constexpr float pointSpan = .1f;
-      constexpr double pi = IGN_PI;
+      constexpr double pi = GZ_PI;
 
       double multiplier = pi * 10;
       double petals = pi + 1.1f;
@@ -1058,6 +1059,11 @@ void Ogre2GpuRays::UpdateSampleTexture()
   stagingTexture->upload(texBox, this->dataPtr->cubeUVTexture, 0, 0, 0, true);
   // Tell the TextureGpuManager we're done with this StagingTexture.
   // Otherwise it will leak.
+
+  auto engine = Ogre2RenderEngine::Instance();
+  auto ogreRoot = engine->OgreRoot();
+  Ogre::TextureGpuManager *textureMgr =
+    ogreRoot->getRenderSystem()->getTextureGpuManager();
   textureMgr->removeStagingTexture(stagingTexture);
   stagingTexture = 0;
   // Do not free the pointer if texture's paging strategy is

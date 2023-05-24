@@ -65,6 +65,7 @@
 #include <OgreHighLevelGpuProgramManager.h>
 #include <OgreHardwarePixelBuffer.h>
 #include <OgreShadowCameraSetupPSSM.h>
+#include <OgreVertexIndexData.h>
 #include <Paging/OgrePageManager.h>
 #include <Paging/OgrePagedWorld.h>
 #include <Terrain/OgreTerrainPaging.h>

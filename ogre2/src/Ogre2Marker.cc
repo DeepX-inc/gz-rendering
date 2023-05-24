@@ -39,6 +39,7 @@
 #include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
 #include "gz/rendering/ogre2/Ogre2Scene.hh"
 #include "gz/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/ogre2/Ogre2Text.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -376,7 +377,7 @@ void Ogre2Marker::SetType(MarkerType _markerType)
         auto text = std::dynamic_pointer_cast<Ogre2Text>(this->scene->CreateText());
         text->SetCharHeight(2);
         text->SetShowOnTop(true);
-        text->SetColor(ignition::math::Color::Black);
+        text->SetColor(gz::math::Color::Black);
         this->dataPtr->text = text;
         break;
       }

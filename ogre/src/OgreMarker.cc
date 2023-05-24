@@ -23,6 +23,7 @@
 #include "gz/rendering/ogre/OgreMaterial.hh"
 #include "gz/rendering/ogre/OgreMesh.hh"
 #include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreText.hh"
 
 class gz::rendering::OgreMarkerPrivate
 {
@@ -294,7 +295,7 @@ void OgreMarker::SetType(MarkerType _markerType)
         auto text = std::dynamic_pointer_cast<OgreText>(this->scene->CreateText());
         text->SetCharHeight(2);
         text->SetShowOnTop(true);
-        text->SetColor(ignition::math::Color::Black);
+        text->SetColor(gz::math::Color::Black);
         this->dataPtr->text = text;
         break;
       }

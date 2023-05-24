@@ -80,6 +80,7 @@
 #include <OgreParticleEmitter.h>
 #include <OgreParticleSystem.h>
 #include <OgreVector3.h>
+#include <OgreVertexIndexData.h>
 #include <OgreWindow.h>
 #include <OgreWindowEventUtilities.h>
 
