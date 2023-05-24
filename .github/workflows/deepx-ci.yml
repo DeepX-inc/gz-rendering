@@ -24,7 +24,7 @@ jobs:
           username: deepx-inc
           password: ${{ github.token }}
 
-      - name: Build and commit the Docker container
+      - name: Build
         run: |
           docker build -t deepx-gz-rendering .
       
