@@ -4,9 +4,9 @@ run-name: Build Docker container and perform unit testing
 
 on: 
   push:
-    branches: [ign-rendering6]
+    branches: [gz-rendering7]
   pull_request:
-    branches: [ign-rendering6]
+    branches: [gz-rendering7]
   workflow_dispatch:
 
 jobs:
