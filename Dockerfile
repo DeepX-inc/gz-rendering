@@ -51,12 +51,10 @@ RUN apt -qq update && \
     libignition-math6-dev \
     libignition-msgs8-dev \
     libignition-physics5-dev \
-    libignition-plugin-dev \
     libignition-tools-dev \
     libignition-transport11-dev \
     libignition-utils-dev \
     libsdformat12 \
-    libignition-plugin-dev \
     && apt -qq -y autoclean \
     && apt -qq -y autoremove \
     && rm -rf /var/lib/apt/lists/*
