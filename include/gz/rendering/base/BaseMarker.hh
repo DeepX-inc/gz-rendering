@@ -88,6 +88,9 @@ namespace gz
       public: virtual void SetPoint(unsigned int _index,
                   const gz::math::Vector3d &_value) override;
 
+      // Documentation inherited
+      public: virtual void SetText(const std::string &_text) override;
+
       /// \brief Life time of a marker
       GZ_UTILS_WARN_IGNORE__DLL_INTERFACE_MISSING
       protected: std::chrono::steady_clock::duration lifetime =
@@ -224,6 +227,13 @@ namespace gz
     template <class T>
     void BaseMarker<T>::SetPoint(unsigned int,
                   const gz::math::Vector3d &)
+    {
+      // no op
+    }
+
+    /////////////////////////////////////////////////
+    template <class T>
+    void BaseMarker<T>::SetText(const std::string&)
     {
       // no op
     }

@@ -140,6 +140,10 @@ namespace gz
       /// \param[in] _value The new positional vector of the point
       public: virtual void SetPoint(unsigned int _index,
                   const gz::math::Vector3d &_value) = 0;
+
+      /// \brief Set text to a text marker
+      /// \param[in] _text The text to set
+      public: virtual void SetText(const std::string &_text) = 0;
     };
     }
   }

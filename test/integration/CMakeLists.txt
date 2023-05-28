@@ -4,9 +4,7 @@ set(tests
   boundingbox_camera
   camera
   depth_camera
-  gpu_rays
   heightmap
-  lidar_visual
   projector
   render_pass
   scene

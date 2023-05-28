@@ -137,6 +137,10 @@ namespace gz
       /// cubemap face index data
       private: void CreateSampleTexture();
 
+      /// \brief Update texture that stores cubemap uv coordinates and
+      /// cubemap face index data
+      private: void UpdateSampleTexture();
+
       /// \brief Set up 1st pass material, texture, and compositor
       private: void Setup1stPass();
 

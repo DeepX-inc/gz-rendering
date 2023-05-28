@@ -151,6 +151,9 @@ namespace gz
       // Documentation inherited.
       public: virtual double VerticalResolution() const override;
 
+      // Documentation inherited.
+      public: virtual void SetScanningPattern(const ScanningPattern _pattern) override;
+
       /// \brief maximum value used for data outside sensor range
       public: float dataMaxVal = gz::math::INF_D;
 
@@ -200,6 +203,9 @@ namespace gz
       /// \brief Number of channels used to store the data
       protected: unsigned int channels = 1u;
 
+      /// \brief Scanning Pattern
+      protected: ScanningPattern pattern = ScanningPattern::RASTERIZATION;
+      
       private: friend class OgreScene;
     };
 
@@ -445,6 +451,13 @@ namespace gz
     double BaseGpuRays<T>::VerticalResolution() const
     {
       return this->vResolution;
+    }
+
+    template <class T>
+    //////////////////////////////////////////////////
+    void BaseGpuRays<T>::SetScanningPattern(const ScanningPattern _pattern)
+    {
+        this->pattern = _pattern;
     }
     }
   }
