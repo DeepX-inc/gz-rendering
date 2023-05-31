@@ -23,6 +23,7 @@
 #include "gz/rendering/ogre/OgreMaterial.hh"
 #include "gz/rendering/ogre/OgreMesh.hh"
 #include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreText.hh"
 
 class gz::rendering::OgreMarkerPrivate
 {
@@ -34,6 +35,9 @@ class gz::rendering::OgreMarkerPrivate
 
   /// \brief Geometry Object for primitive shapes
   public: OgreGeometryPtr geom{nullptr};
+
+  /// \brief Geometry Object for text
+  public: std::shared_ptr<OgreText> text;
 };
 
 using namespace gz;
@@ -79,6 +83,9 @@ void OgreMarker::PreRender()
   }
 
   this->dataPtr->dynamicRenderable->Update();
+
+  if (this->dataPtr->text)
+    this->dataPtr->text->PreRender();
 }
 
 //////////////////////////////////////////////////
@@ -113,6 +120,14 @@ Ogre::MovableObject *OgreMarker::OgreObject() const
       if (nullptr != this->dataPtr->geom)
       {
         return this->dataPtr->geom->OgreObject();
+      }
+      return nullptr;
+    }
+    case MT_TEXT:
+    {
+      if (nullptr != this->dataPtr->text)
+      {
+        return this->dataPtr->text->OgreObject();
       }
       return nullptr;
     }
@@ -181,6 +196,16 @@ void OgreMarker::SetMaterial(MaterialPtr _material, bool _unique)
   switch (this->markerType)
   {
     case MT_NONE:
+      break;
+    case MT_TEXT:
+      if (nullptr != this->dataPtr->text)
+      {
+        this->dataPtr->text->SetMaterial(derived, false);
+      }
+      else
+      {
+        gzerr << "Failed to set material, null text." << std::endl;
+      }
       break;
     case MT_BOX:
     case MT_CAPSULE:
@@ -265,6 +290,15 @@ void OgreMarker::SetType(MarkerType _markerType)
       this->dataPtr->geom =
         std::dynamic_pointer_cast<OgreGeometry>(this->scene->CreateSphere());
       break;
+    case MT_TEXT:
+      {
+        auto text = std::dynamic_pointer_cast<OgreText>(this->scene->CreateText());
+        text->SetCharHeight(2);
+        text->SetShowOnTop(true);
+        text->SetColor(gz::math::Color::Black);
+        this->dataPtr->text = text;
+        break;
+      }
     case MT_LINE_STRIP:
     case MT_LINE_LIST:
     case MT_POINTS:
@@ -277,6 +311,13 @@ void OgreMarker::SetType(MarkerType _markerType)
       gzerr << "Invalid Marker type\n";
       break;
   }
+}
+
+//////////////////////////////////////////////////
+void OgreMarker::SetText(const std::string &_text)
+{
+  if (this->dataPtr->text)
+    this->dataPtr->text->SetTextString(_text);
 }
 
 //////////////////////////////////////////////////

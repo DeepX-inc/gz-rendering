@@ -19,6 +19,7 @@
 #include <gz/math/Vector3.hh>
 
 #include <gz/common/Console.hh>
+#include <gz/common/Timer.hh>
 #include <gz/math/Helpers.hh>
 
 #include "gz/rendering/ogre2/Ogre2Camera.hh"
@@ -117,6 +118,17 @@ class GZ_RENDERING_OGRE2_HIDDEN
 /// \brief Private data for the Ogre2GpuRays class
 class GZ_RENDERING_OGRE2_HIDDEN gz::rendering::Ogre2GpuRaysPrivate
 {
+  /// \brief Buffer for storing ray directions of the current frame.
+  public: std::vector<std::tuple<float, float>> rayDirections;
+  /// \brief Texture to upload ray direction samples.
+  public: Ogre::StagingTexture *stagingTexture = nullptr;
+  /// \brief Buffer to move ray direction samples to texture.
+  public: float *textureData = nullptr;
+  /// \brief Track time for lidar points
+  public: common::Timer timer;
+  /// \brief Need double precision, otherwise we get choppy results after a while
+  public: double lastElapsed = 0;
+
   /// \brief Event triggered when new gpu rays range data are available.
   /// \param[in] _frame New frame containing raw gpu rays data.
   /// \param[in] _width Width of frame.
@@ -553,7 +565,7 @@ Ogre2GpuRays::Ogre2GpuRays()
   : dataPtr(new Ogre2GpuRaysPrivate)
 {
   // r = depth, g = retro, and b = n/a
-  this->channels = 3u;
+  this->channels = 4u;
 
   for (unsigned int i = 0; i < this->dataPtr->kCubeCameraCount; ++i)
   {
@@ -603,6 +615,18 @@ void Ogre2GpuRays::Destroy()
   auto engine = Ogre2RenderEngine::Instance();
   auto ogreRoot = engine->OgreRoot();
   auto textureGpuManager = ogreRoot->getRenderSystem()->getTextureGpuManager();
+
+  if (this->dataPtr->stagingTexture)
+  {
+    ogreRoot->getRenderSystem()->getTextureGpuManager()->removeStagingTexture(this->dataPtr->stagingTexture);
+    this->dataPtr->stagingTexture = nullptr;
+  }
+
+  if (this->dataPtr->textureData)
+  {
+    OGRE_FREE_SIMD(this->dataPtr->textureData, Ogre::MEMCATEGORY_RESOURCE);
+    this->dataPtr->textureData = nullptr;
+  }
 
   Ogre::CompositorManager2 *ogreCompMgr = ogreRoot->getCompositorManager2();
 
@@ -752,38 +776,11 @@ void Ogre2GpuRays::ConfigureCamera()
   this->SetVFOV(vfovAngle);
 
   // Configure first pass texture size
-  // Each cubemap texture covers 90 deg FOV so determine number of samples
-  // within the view for both horizontal and vertical FOV
-  unsigned int hs = static_cast<unsigned int>(
-      GZ_PI * 0.5 / hfovAngle.Radian() * this->RangeCount());
-  unsigned int vs = static_cast<unsigned int>(
-      GZ_PI * 0.5 / vfovAngle * this->VerticalRangeCount());
-
-  // get the max number from the two
-  unsigned int v = std::max(hs, vs);
-  // round to next highest power of 2
-  // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-  v--;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v++;
-
-  // limit min texture size to 128
-  // This is needed for large fov with low sample count,
-  // e.g. 360 degrees and only 4 samples. Otherwise the depth data returned are
-  // inaccurate.
-  // \todo(anyone) For small fov, we shouldn't need such a high min texture size
-  // requirement, e.g. a single ray lidar only needs 1x1 texture. Look for ways
-  // to compute the optimal min texture size
-  unsigned int min1stPassSamples = 128u;
-
-  // limit max texture size to 1024
-  unsigned int max1stPassSamples = 1024u;
-  unsigned int samples1stPass =
-      std::clamp(v, min1stPassSamples, max1stPassSamples);
+  // Each cubemap texture covers 90 deg FOV
+  // We need enough samples so we don't get too much aliasing
+  // since the sample rays can have completely arbitrary positions
+  // but we can't use filtering, due to virtual "walls" behind occluders
+  unsigned int samples1stPass = 1024;
 
   this->Set1stTextureSize(samples1stPass, samples1stPass);
 
@@ -826,21 +823,6 @@ math::Vector2d Ogre2GpuRays::SampleCubemap(const math::Vector3d &_v,
 /////////////////////////////////////////////////////////
 void Ogre2GpuRays::CreateSampleTexture()
 {
-  double min = this->AngleMin().Radian();
-  double max = this->AngleMax().Radian();
-  double vmin = this->VerticalAngleMin().Radian();
-  double vmax = this->VerticalAngleMax().Radian();
-
-  double hAngle = std::max(this->dataPtr->kMinAllowedAngle.Radian(), max - min);
-  double vAngle = std::max(this->dataPtr->kMinAllowedAngle.Radian(),
-      vmax - vmin);
-
-  double hStep = hAngle / static_cast<double>(this->dataPtr->w2nd-1);
-  double vStep = 1.0;
-  // non-planar case
-  if (this->dataPtr->h2nd > 1)
-    vStep = vAngle / static_cast<double>(this->dataPtr->h2nd-1);
-
   // create an RGB texture (cubeUVTex) to pack info that tells the shaders how
   // to sample from the cubemap textures.
   // Each pixel packs the follow data:
@@ -864,10 +846,46 @@ void Ogre2GpuRays::CreateSampleTexture()
       0u);
 
   this->dataPtr->cubeUVTexture->setTextureType(Ogre::TextureTypes::Type2D);
-  this->dataPtr->cubeUVTexture->setResolution(
-    this->dataPtr->w2nd, this->dataPtr->h2nd);
+  this->dataPtr->cubeUVTexture->setResolution(this->dataPtr->w2nd, this->dataPtr->h2nd);
   this->dataPtr->cubeUVTexture->setNumMipmaps(1u);
   this->dataPtr->cubeUVTexture->setPixelFormat(Ogre::PFG_RGBA32_FLOAT);
+
+  auto insertFace = [this](auto x, auto y)
+  {
+    math::Vector3d ray(0, 0, 1);
+    math::Quaterniond pitch(math::Vector3d(1, 0, 0), -y);
+    math::Quaterniond yaw(math::Vector3d(0, 1, 0), -x);
+    math::Vector3d dir = yaw * pitch * ray;
+    dir.Normalize();
+    unsigned int faceIdx;
+    this->SampleCubemap(dir, faceIdx);
+    this->dataPtr->cubeFaceIdx.insert(faceIdx);
+  };
+
+  double hmin = this->AngleMin().Radian();
+  double hmax = this->AngleMax().Radian();
+  double vmin = this->VerticalAngleMin().Radian();
+  double vmax = this->VerticalAngleMax().Radian();
+  insertFace(0, 0);
+  insertFace(hmin, 0);
+  insertFace(hmax, 0);
+  insertFace(0, vmin);
+  insertFace(0, vmax);
+  insertFace(hmin / 2, 0);
+  insertFace(hmax / 2, 0);
+  insertFace(0, vmin / 2);
+  insertFace(0, vmax / 2);
+
+  this->dataPtr->cubeUVTexture->_transitionTo(Ogre::GpuResidency::Resident, nullptr);
+  this->dataPtr->cubeUVTexture->_setNextResidencyStatus(Ogre::GpuResidency::Resident);
+  // We have to upload the data via a StagingTexture, which acts as an
+  // intermediate stash memory that is both visible to CPU and GPU.
+  this->dataPtr->stagingTexture = textureMgr->getStagingTexture(
+    this->dataPtr->cubeUVTexture->getWidth(),
+    this->dataPtr->cubeUVTexture->getHeight(),
+    this->dataPtr->cubeUVTexture->getDepth(),
+    this->dataPtr->cubeUVTexture->getNumSlices(),
+    this->dataPtr->cubeUVTexture->getPixelFormat() );
 
   const Ogre::uint32 rowAlignment = 1u;
   const size_t dataSize = Ogre::PixelFormatGpuUtils::getSizeBytes(
@@ -878,52 +896,125 @@ void Ogre2GpuRays::CreateSampleTexture()
     this->dataPtr->cubeUVTexture->getPixelFormat(),
     rowAlignment);
 
-  const size_t bytesPerRow =
-    this->dataPtr->cubeUVTexture->_getSysRamCopyBytesPerRow( 0 );
-  float *pDest = reinterpret_cast<float*>(
+  this->dataPtr->textureData = reinterpret_cast<float*>(
     OGRE_MALLOC_SIMD(dataSize, Ogre::MEMCATEGORY_RESOURCE));
 
-  double v = vmin;
-  int index = 0;
-  for (unsigned int i = 0; i < this->dataPtr->h2nd; ++i)
+  // Buffer for which directions we sent the rays into the scene
+  this->dataPtr->rayDirections.resize(this->dataPtr->w2nd * this->dataPtr->h2nd);
+
+  this->dataPtr->timer.Start();
+}
+
+/////////////////////////////////////////////////////////
+void Ogre2GpuRays::UpdateSampleTexture()
+{
+  auto getLidarPoints = [](double timepoint, double timespan, size_t pointCount)
   {
-    double h = min;
-    for (unsigned int j = 0; j < this->dataPtr->w2nd; ++j)
+    constexpr size_t arrayCount = 6;
+    auto livoxAvia = [arrayCount](double time)
     {
+      constexpr float pointSpan = .1f;
+      constexpr double pi = GZ_PI;
+
+      double multiplier = pi * 10;
+      double petals = pi + 1.1f;
+
+      time *= -pi * multiplier;
+
+      float dist = (float)sin(time * petals);
+      float x = (float)cos(time) * dist;
+      float y = (float)sin(time) * dist;
+
+      std::array<std::tuple<float, float>, arrayCount> points;
+      for (size_t i = 0; i < arrayCount; i++)
+          points[i] = {x, y * (1 - pointSpan / 2) + ((float)i / (arrayCount - 1) - .5f) * pointSpan};
+
+      return points;
+    };
+
+    std::vector<std::tuple<float, float>> points;
+
+    for (size_t i = 0; i < pointCount / arrayCount; i++)
+      for (auto p : livoxAvia(timepoint + timespan * i * arrayCount / pointCount))
+        points.push_back(p);
+
+    return points;
+  };
+
+  double hmin = this->AngleMin().Radian();
+  double hmax = this->AngleMax().Radian();
+  double vmin = this->VerticalAngleMin().Radian();
+  double vmax = this->VerticalAngleMax().Radian();
+  float *pDest = this->dataPtr->textureData;
+
+  std::vector<std::tuple<float, float>> points;
+  auto hdiff = hmax - hmin;
+  auto vdiff = vmax - vmin;
+
+  if (this->pattern == ScanningPattern::AVIA)
+  {
+    // Real Lidar has a polling rate of 240k pps
+    // We keep time in sync with real lidar,
+    // but keep polling rate constant according to image buffer size
+    double time = this->dataPtr->timer.ElapsedTime().count();
+    double span = time - this->dataPtr->lastElapsed;
+    this->dataPtr->lastElapsed = time;
+
+    points = getLidarPoints(time, span, this->dataPtr->w2nd * this->dataPtr->h2nd);
+
+    hdiff /= 2;
+    vdiff /= 2;
+  }
+
+  else if (this->pattern == ScanningPattern::RASTERIZATION)
+  {
+    hdiff /= this->dataPtr->h2nd;
+    vdiff /= this->dataPtr->w2nd;
+  }
+
+  for (unsigned i = 0; i < this->dataPtr->h2nd; ++i)
+  {
+    for (unsigned j = 0; j < this->dataPtr->w2nd; ++j)
+    {
+      unsigned index = i * this->dataPtr->w2nd + j;
+
+      float x = 0.0f, y = 0.0f, dx = 0.0f, dy = 0.0f;
+      if (this->pattern == ScanningPattern::AVIA)
+      {
+        dx =  std::get<0>(points[index]);
+        dy =  std::get<1>(points[index]);
+      } else if (this->pattern == ScanningPattern::RASTERIZATION)
+      {
+        dx = i;
+        dy = j;
+      }
+
+      x = hmin + (dx + 1) * hdiff;
+      y = vmin + (dy + 1) * vdiff;
+      this->dataPtr->rayDirections[index] = {x, y};
+
       // set up dir vector to sample from a standard Y up cubemap
       math::Vector3d ray(0, 0, 1);
-      ray.Normalize();
-      math::Quaterniond pitch(math::Vector3d(1, 0, 0), -v);
-      math::Quaterniond yaw(math::Vector3d(0, 1, 0), -h);
+      math::Quaterniond pitch(math::Vector3d(1, 0, 0), -y);
+      math::Quaterniond yaw(math::Vector3d(0, 1, 0), -x);
       math::Vector3d dir = yaw * pitch * ray;
-      unsigned int faceIdx;
+      dir.Normalize();
+      unsigned faceIdx;
       math::Vector2d uv = this->SampleCubemap(dir, faceIdx);
-      this->dataPtr->cubeFaceIdx.insert(faceIdx);
-      // gzdbg << "p(" << pitch << ") y(" << yaw << "): " << dir << " | "
-      //       << uv << " | " << faceIdx << std::endl;
+      index *= 4;
       // u
-      pDest[index++] = uv.X();
+      pDest[index + 0] = uv.X();
       // v
-      pDest[index++] = uv.Y();
+      pDest[index + 1] = uv.Y();
       // face
-      pDest[index++] = static_cast<float>(faceIdx);
+      pDest[index + 2] = faceIdx;
       // unused
-      pDest[index++] = 1.0;
-      h += hStep;
+      pDest[index + 3] = 1.0;
     }
-    v += vStep;
   }
-  this->dataPtr->cubeUVTexture->_transitionTo(
-    Ogre::GpuResidency::Resident,
-    reinterpret_cast<Ogre::uint8*>(pDest) );
   // We have to upload the data via a StagingTexture, which acts as an
   // intermediate stash memory that is both visible to CPU and GPU.
-  Ogre::StagingTexture *stagingTexture = textureMgr->getStagingTexture(
-    this->dataPtr->cubeUVTexture->getWidth(),
-    this->dataPtr->cubeUVTexture->getHeight(),
-    this->dataPtr->cubeUVTexture->getDepth(),
-    this->dataPtr->cubeUVTexture->getNumSlices(),
-    this->dataPtr->cubeUVTexture->getPixelFormat() );
+  Ogre::StagingTexture *stagingTexture = this->dataPtr->stagingTexture;
   stagingTexture->startMapRegion();
   // Map region of the staging texture. This function can be called from
   // any thread after startMapRegion has already been called.
@@ -934,6 +1025,7 @@ void Ogre2GpuRays::CreateSampleTexture()
     this->dataPtr->cubeUVTexture->getNumSlices(),
     this->dataPtr->cubeUVTexture->getPixelFormat());
 
+  const size_t bytesPerRow = this->dataPtr->cubeUVTexture->_getSysRamCopyBytesPerRow( 0 );
   texBox.copyFrom(
     pDest,
     this->dataPtr->cubeUVTexture->getWidth(),
@@ -941,12 +1033,9 @@ void Ogre2GpuRays::CreateSampleTexture()
     bytesPerRow);
   stagingTexture->stopMapRegion();
   stagingTexture->upload(texBox, this->dataPtr->cubeUVTexture, 0, 0, 0, true);
-  // Tell the TextureGpuManager we're done with this StagingTexture.
-  // Otherwise it will leak.
-  textureMgr->removeStagingTexture(stagingTexture);
-  stagingTexture = 0;
-  // Do not free the pointer if texture's paging strategy is
-  // GpuPageOutStrategy::AlwaysKeepSystemRamCopy
+
+  // TODO: Decide if this is needed.
+  // this->dataPtr->cubeUVTexture->notifyDataIsReady();
 }
 
 /////////////////////////////////////////////////////////
@@ -1245,6 +1334,8 @@ void Ogre2GpuRays::UpdateRenderTarget2ndPass()
 //////////////////////////////////////////////////
 void Ogre2GpuRays::Render()
 {
+  this->UpdateSampleTexture();
+
   this->scene->StartRendering(this->dataPtr->ogreCamera);
 
   auto engine = Ogre2RenderEngine::Instance();
@@ -1328,18 +1419,18 @@ void Ogre2GpuRays::PostRender()
           column * this->Channels();
       unsigned int rawIdx = (row * width * rawChannelCount) +
           column * rawChannelCount;
-
+      auto [x, y] = this->dataPtr->rayDirections[row * width + column];
       this->dataPtr->gpuRaysScan[idx] =
           this->dataPtr->gpuRaysBuffer[rawIdx];
       this->dataPtr->gpuRaysScan[idx + 1] =
           this->dataPtr->gpuRaysBuffer[rawIdx + 1];
-      this->dataPtr->gpuRaysScan[idx + 2] =
-          this->dataPtr->gpuRaysBuffer[rawIdx + 2];
+      this->dataPtr->gpuRaysScan[idx + 2] = x;
+      this->dataPtr->gpuRaysScan[idx + 3] = y;
     }
   }
 
   this->dataPtr->newGpuRaysFrame(this->dataPtr->gpuRaysScan,
-      width, height, this->Channels(), "PF_FLOAT32_RGB");
+      width, height, this->Channels(), "PF_FLOAT32_RGBA");
 
   // Uncomment to debug output
   // std::cerr << "wxh: " << width << " x " << height << std::endl;

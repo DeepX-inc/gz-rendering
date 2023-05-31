@@ -87,3 +87,5 @@ gz_build_tests(TYPE UNIT
                ENVIRONMENT GZ_RENDERING_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX})
 
 install(DIRECTORY "media"  DESTINATION ${GZ_RENDERING_RESOURCE_PATH}/ogre2)
+
+add_subdirectory(media)
