@@ -45,6 +45,7 @@
 #include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
 #include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
 #include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Text.hh"
 #include "gz/rendering/ogre2/Ogre2ThermalCamera.hh"
 #include "gz/rendering/ogre2/Ogre2SegmentationCamera.hh"
 #include "gz/rendering/ogre2/Ogre2Visual.hh"

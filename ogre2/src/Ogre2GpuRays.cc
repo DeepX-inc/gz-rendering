@@ -19,6 +19,7 @@
 #include <gz/math/Vector3.hh>
 
 #include <gz/common/Console.hh>
+#include <gz/common/Timer.hh>
 #include <gz/math/Helpers.hh>
 
 #include "gz/rendering/ogre2/Ogre2Camera.hh"
@@ -495,6 +496,18 @@ void Ogre2GpuRays::Destroy()
     this->dataPtr->cubeUVTexture = nullptr;
   }
 
+  if (this->dataPtr->stagingTexture)
+  {
+    ogreRoot->getRenderSystem()->getTextureGpuManager()->removeStagingTexture(this->dataPtr->stagingTexture);
+    this->dataPtr->stagingTexture = nullptr;
+  }
+
+  if (this->dataPtr->textureData)
+  {
+    OGRE_FREE_SIMD(this->dataPtr->textureData, Ogre::MEMCATEGORY_RESOURCE);
+    this->dataPtr->textureData = nullptr;
+  }
+
   if (this->scene)
   {
     Ogre::SceneManager *ogreSceneManager = this->scene->OgreSceneManager();
@@ -854,6 +867,8 @@ void Ogre2GpuRays::UpdateSampleTexture()
   stagingTexture->stopMapRegion();
   stagingTexture->upload(texBox, this->dataPtr->cubeUVTexture, 0, 0, 0, true);
 
+  // TODO: Decide if this is needed.
+  // 
   this->dataPtr->cubeUVTexture->notifyDataIsReady();
 }
 

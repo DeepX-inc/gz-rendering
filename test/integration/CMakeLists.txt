@@ -10,7 +10,6 @@ set(tests
   segmentation_camera.cc
   sky.cc
   thermal_camera.cc
-  lidar_visual.cc
   heightmap.cc
 )
 
