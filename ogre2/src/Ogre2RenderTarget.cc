@@ -15,17 +15,17 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/Material.hh"
+#include "gz/rendering/Material.hh"
 
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderPass.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderPass.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
 
 namespace ignition
 {
@@ -59,8 +59,8 @@ class Ogre2RenderTargetCompositorListener :
       Ogre::Viewport *vp = scenePass->getCamera()->getLastViewport();
       if (vp == nullptr) return;
       // make sure we do not alter the reserved visibility flags
-      uint32_t f = this->ogreRenderTarget->VisibilityMask() |
-          ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS;
+      uint32_t f = this->ogreRenderTarget->VisibilityMask() &
+                   Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS;
       // apply the new visibility mask
       uint32_t flags = f & vp->getVisibilityMask();
       vp->_setVisibilityMask(flags, vp->getLightVisibilityMask());
@@ -75,7 +75,7 @@ class Ogre2RenderTargetCompositorListener :
 }
 
 /// \brief Private data class for Ogre2RenderTarget
-class ignition::rendering::Ogre2RenderTargetPrivate
+class gz::rendering::Ogre2RenderTargetPrivate
 {
   /// \brief Listener for chaning compositor pass properties
   public: Ogre2RenderTargetCompositorListener *rtListener = nullptr;
@@ -101,7 +101,7 @@ class ignition::rendering::Ogre2RenderTargetPrivate
   public: Ogre::TextureGpu *ogreTexture[2] = {nullptr, nullptr};
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -117,11 +117,11 @@ Ogre2RenderTarget::Ogre2RenderTarget()
 //////////////////////////////////////////////////
 Ogre2RenderTarget::~Ogre2RenderTarget()
 {
-  if (this->dataPtr->rtListener)
-  {
-    delete this->dataPtr->rtListener;
-    this->dataPtr->rtListener = nullptr;
-  }
+  IGN_ASSERT(this->dataPtr->rtListener == nullptr &&
+               this->dataPtr->ogreTexture[0] == nullptr &&
+               this->dataPtr->ogreTexture[1] == nullptr &&
+               this->ogreCompositorWorkspace == nullptr,
+             "Ogre2RenderTarget::Destroy not called!");
 }
 
 //////////////////////////////////////////////////
@@ -454,7 +454,6 @@ void Ogre2RenderTarget::PreRender()
   {
     this->material->PreRender();
   }
-
   this->UpdateRenderPassChain();
 }
 
@@ -671,6 +670,13 @@ void Ogre2RenderTarget::UpdateRenderPassChain()
       this->renderPassDirty,
       &this->dataPtr->ogreTexture,
       this->IsRenderWindow());
+
+  if (this->renderPassDirty)
+  {
+    // make sure to render the result after updating the render pass chain
+    for (auto &pass : this->renderPasses)
+      pass->PreRender();
+  }
 
   this->renderPassDirty = false;
 }

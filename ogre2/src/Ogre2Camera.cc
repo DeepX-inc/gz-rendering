@@ -15,12 +15,12 @@
  *
  */
 
-#include "ignition/rendering/ogre2/Ogre2Camera.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTarget.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2SelectionBuffer.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/ogre2/Ogre2Camera.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTarget.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2SelectionBuffer.hh"
+#include "gz/rendering/Utils.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -33,11 +33,11 @@
 #endif
 
 /// \brief Private data for the Ogre2Camera class
-class ignition::rendering::Ogre2CameraPrivate
+class gz::rendering::Ogre2CameraPrivate
 {
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -57,6 +57,8 @@ void Ogre2Camera::Destroy()
 {
   if (!this->ogreCamera || !this->Scene()->IsInitialized())
     return;
+
+  this->DestroyRenderTexture();
 
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
@@ -190,6 +192,7 @@ void Ogre2Camera::CreateCamera()
 //////////////////////////////////////////////////
 void Ogre2Camera::CreateRenderTexture()
 {
+  this->DestroyRenderTexture();
   RenderTexturePtr base = this->scene->CreateRenderTexture();
   this->renderTexture = std::dynamic_pointer_cast<Ogre2RenderTexture>(base);
   this->renderTexture->SetCamera(this->ogreCamera);
@@ -200,6 +203,16 @@ void Ogre2Camera::CreateRenderTexture()
   this->renderTexture->SetVisibilityMask(this->visibilityMask);
 }
 
+
+//////////////////////////////////////////////////
+void Ogre2Camera::DestroyRenderTexture()
+{
+  if (this->renderTexture)
+  {
+    dynamic_cast<Ogre2RenderTarget *>(this->renderTexture.get())->Destroy();
+    this->renderTexture.reset();
+  }
+}
 //////////////////////////////////////////////////
 unsigned int Ogre2Camera::RenderTextureGLId() const
 {
@@ -248,7 +261,7 @@ Ogre2SelectionBuffer *Ogre2Camera::SelectionBuffer() const
 }
 
 //////////////////////////////////////////////////
-VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
+VisualPtr Ogre2Camera::VisualAt(const math::Vector2i &_mousePos)
 {
   VisualPtr result;
 
@@ -268,7 +281,7 @@ VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
   }
 
   float ratio = screenScalingFactor();
-  ignition::math::Vector2i mousePos(
+  math::Vector2i mousePos(
       static_cast<int>(std::rint(ratio * _mousePos.X())),
       static_cast<int>(std::rint(ratio * _mousePos.Y())));
   Ogre::Item *ogreItem = this->selectionBuffer->OnSelectionClick(
@@ -298,8 +311,17 @@ VisualPtr Ogre2Camera::VisualAt(const ignition::math::Vector2i &_mousePos)
 //////////////////////////////////////////////////
 RenderWindowPtr Ogre2Camera::CreateRenderWindow()
 {
-  // TODO(anyone)
-  return RenderWindowPtr();
+  RenderWindowPtr base = this->scene->CreateRenderWindow();
+  Ogre2RenderWindowPtr renderWindow =
+      std::dynamic_pointer_cast<Ogre2RenderWindow>(base);
+  renderWindow->SetWidth(this->ImageWidth());
+  renderWindow->SetHeight(this->ImageHeight());
+  renderWindow->SetDevicePixelRatio(1);
+  renderWindow->SetCamera(this->ogreCamera);
+  renderWindow->SetBackgroundColor(this->scene->BackgroundColor());
+
+  this->renderTexture = renderWindow;
+  return base;
 }
 
 //////////////////////////////////////////////////
@@ -363,6 +385,14 @@ Ogre::Camera *Ogre2Camera::OgreCamera() const
 //////////////////////////////////////////////////
 void Ogre2Camera::SetVisibilityMask(uint32_t _mask)
 {
+  if (_mask & ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS)
+  {
+    ignwarn << "Ogre2Camera::SetVisibilityMask: Mask bits " << std::hex
+            << ~Ogre::VisibilityFlags::RESERVED_VISIBILITY_FLAGS << std::dec
+            << " are set but will be ignored as they conflict with the "
+            << "reserved bits used internally by the ogre2 backend."
+            << std::endl;
+  }
   BaseSensor::SetVisibilityMask(_mask);
   if (this->renderTexture)
     this->renderTexture->SetVisibilityMask(_mask);

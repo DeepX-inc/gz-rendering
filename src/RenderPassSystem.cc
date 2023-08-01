@@ -15,15 +15,15 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/RenderPassSystem.hh"
+#include "gz/rendering/RenderPassSystem.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 /// \brief Private implementation of the RenderPassSystem class
-class ignition::rendering::RenderPassSystemPrivate
+class gz::rendering::RenderPassSystemPrivate
 {
 };
 
@@ -53,8 +53,8 @@ RenderPassPtr RenderPassSystem::CreateImpl(const std::string &_type)
   }
   else
   {
-    ignerr << "RenderPass of typeid '" << _type << "' is not registered"
-           << std::endl;
+    ignwarn << "RenderPass of typeid '" << _type << "' is not registered"
+            << std::endl;
   }
   return pass;
 }

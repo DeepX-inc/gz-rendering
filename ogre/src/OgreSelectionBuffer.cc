@@ -16,18 +16,18 @@
 */
 
 #include <memory>
-#include <ignition/math/Color.hh>
+#include <gz/math/Color.hh>
 
-#include "ignition/common/Console.hh"
-#include "ignition/rendering/RenderTypes.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreMaterialSwitcher.hh"
-#include "ignition/rendering/ogre/OgreSelectionBuffer.hh"
+#include "gz/common/Console.hh"
+#include "gz/rendering/RenderTypes.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreMaterialSwitcher.hh"
+#include "gz/rendering/ogre/OgreSelectionBuffer.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
-class ignition::rendering::OgreSelectionBufferPrivate
+class gz::rendering::OgreSelectionBufferPrivate
 {
   /// \brief This is a material listener and a RenderTargetListener.
   /// The material switcher is applied to only the selection camera
@@ -231,14 +231,14 @@ Ogre::Entity *OgreSelectionBuffer::OnSelectionClick(const int _x, const int _y)
 
   size_t posInStream = 0;
 
-  ignition::math::Color::BGRA color(0);
+  math::Color::BGRA color(0);
   if (!this->dataPtr->buffer)
   {
     ignerr << "Selection buffer is null.\n";
     return nullptr;
   }
   memcpy(static_cast<void *>(&color), this->dataPtr->buffer + posInStream, 4);
-  ignition::math::Color cv;
+  math::Color cv;
   cv.SetFromARGB(color);
   cv.A(1.0);
   const std::string &entName =

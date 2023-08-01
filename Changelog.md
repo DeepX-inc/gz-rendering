@@ -1,5 +1,94 @@
 ## Ignition Rendering
 
+### Ignition Rendering 6.6.0 (2023-02-02)
+
+1. Backport Composite BaseVisual destroy fix to 6
+    * [Pull request #818](https://github.com/gazebosim/ign-rendering/pull/818)
+
+1. Forward port 3 to 6.
+    * [Pull request #815](https://github.com/gazebosim/ign-rendering/pull/815)
+    * [Pull request #819](https://github.com/gazebosim/ign-rendering/pull/819)
+
+1. Remove fini to resolve segfault at shutdown
+    * [Pull request #813](https://github.com/gazebosim/ign-rendering/pull/813)
+
+1. Fix transparency over heightmap
+    * [Pull request #811](https://github.com/gazebosim/ign-rendering/pull/811)
+
+1. Fix duplicate PreRrender calls
+    * [Pull request #809](https://github.com/gazebosim/ign-rendering/pull/809)
+
+1. ign -> gz Migrate Ignition Headers : gz-rendering
+    * [Pull request #705](https://github.com/gazebosim/ign-rendering/pull/705)
+
+1. Improved coverage: MeshDescriptor, Mesh, MoveToHelper, OrbitViewController, PixelFormat and ShadersParams
+    * [Pull request #748](https://github.com/gazebosim/ign-rendering/pull/748)
+
+1. Suppress Windows warnings
+    * [Pull request #749](https://github.com/gazebosim/ign-rendering/pull/749)
+
+### Ignition Rendering 6.5.2 (2023-01-19)
+
+1. Mesh clean up in destructor
+    * [Pull request #807](https://github.com/gazebosim/ign-rendering/pull/807)
+
+1. Fix Ogre2DepthCamera on macOS (Fortress)
+    * [Pull request #797](https://github.com/gazebosim/ign-rendering/pull/797)
+
+1. Restore GLX context after OGRE plugin loading finishes.
+    * [Pull request #794](https://github.com/gazebosim/ign-rendering/pull/794)
+
+1. Add message to see troubleshooting page when render engine fails to initialize
+    * [Pull request #793](https://github.com/gazebosim/ign-rendering/pull/793)
+
+1. Do not overwrite reserved visibility flags in ogre2 (Fortress)
+    * [Pull request #783](https://github.com/gazebosim/ign-rendering/pull/783)
+
+1. Fix Metal shader compiler error in GpuRays (Lidar)
+    * [Pull request #786](https://github.com/gazebosim/ign-rendering/pull/786)
+
+1. Fix memory corruption in Ogre2GpuRays
+    * [Pull request #787](https://github.com/gazebosim/ign-rendering/pull/787)
+
+1. Fix RenderTarget::destroy not getting called in both ogre1 & ogre2
+    * [Pull request #776](https://github.com/gazebosim/ign-rendering/pull/776)
+
+1. Fix wrong error log message when creating scene
+    * [Pull request #777](https://github.com/gazebosim/ign-rendering/pull/777)
+
+1. Use proper sRGB conversion in DepthCamera
+    * [Pull request #766](https://github.com/gazebosim/ign-rendering/pull/766)
+
+1. Fix non-deterministic rendering due to background texture loading
+    * [Pull request #765](https://github.com/gazebosim/ign-rendering/pull/765)
+
+1. Fix lidar heightmap detection
+    * [Pull request #760](https://github.com/gazebosim/ign-rendering/pull/760)
+
+1. Improved RenderEngine and Mesh coverage
+    * [Pull request #739](https://github.com/gazebosim/ign-rendering/pull/739)
+
+1. Increased Marker coverage
+    * [Pull request #738](https://github.com/gazebosim/ign-rendering/pull/738)
+
+1. Added shaderType converage
+    * [Pull request #740](https://github.com/gazebosim/ign-rendering/pull/740)
+
+1. Improved grid coverage
+    * [Pull request #737](https://github.com/gazebosim/ign-rendering/pull/737)
+
+1. Improved coverage Arrow and Axis visuals and fixed some warnings
+    * [Pull request #736](https://github.com/gazebosim/ign-rendering/pull/736)
+
+1. Remove redundant namespace references
+    * [Pull request #701](https://github.com/gazebosim/ign-rendering/pull/701)
+
+1. Change IGN_DESIGNATION to GZ_DESIGNATION
+    * [Pull request #677](https://github.com/gazebosim/ign-rendering/pull/677)
+
+1. Add coverage ignore file
+    * [Pull request #689](https://github.com/gazebosim/ign-rendering/pull/689)
+
 ### Ignition Rendering 6.5.1 (2022-07-28)
 
 1. Backport multiple ray queries fix (#665)
@@ -797,6 +886,71 @@
 
 1. Add support for transparency based on textures alpha channel for ogre1 and ogre2
     * [BitBucket pull request 229](https://osrf-migration.github.io/ignition-gh-pages/#!/ignitionrobotics/ign-rendering/pull-requests/229)
+
+### Ignition Rendering 3.7.1 (2023-02-03)
+
+1. Remove fini to resolve segfaault at shutdown.
+    * [Pull request #813](https://github.com/gazebosim/gz-rendering/pull/813)
+
+### Ignition Rendering 3.7.0 (2022-11-29)
+
+1. Migrate ignition to gazebo headers.
+    * [Pull request #705](https://github.com/gazebosim/gz-rendering/pull/705)
+
+### Ignition Rendering 3.6.1 (2022-11-08)
+
+1. Improved coverage: MeshDescriptor, Mesh, MoveToHelper, OrbitViewController, PixelFormat and ShadersParams
+    * [Pull request #748](https://github.com/gazebosim/gz-rendering/pull/748)
+
+1. Suppress Windows warnings
+    * [Pull request #749](https://github.com/gazebosim/gz-rendering/pull/749)
+
+1. Improved RenderEngine and Mesh coverage
+    * [Pull request #739](https://github.com/gazebosim/gz-rendering/pull/739)
+
+1. Increase TransformControl test converage (#668)
+    * [Pull request #741](https://github.com/gazebosim/gz-rendering/pull/741)
+
+1. Increased Marker coverage
+    * [Pull request #738](https://github.com/gazebosim/gz-rendering/pull/738)
+
+1. Added shaderType converage
+    * [Pull request #740](https://github.com/gazebosim/gz-rendering/pull/740)
+
+1. Improved grid coverage
+    * [Pull request #737](https://github.com/gazebosim/gz-rendering/pull/737)
+
+1. Improved coverage Arrow and Axis visuals and fixed some warnings
+    * [Pull request #736](https://github.com/gazebosim/gz-rendering/pull/736)
+
+1. Backport from 6 to 3. Disable C4275 warnings on Windows from OgreUTFString (#621)
+    * [Pull request #707](https://github.com/gazebosim/gz-rendering/pull/707)
+
+1. Remove redundant namespace references
+    * [Pull request #701](https://github.com/gazebosim/gz-rendering/pull/701)
+
+1. Disabling flaky depth and thermal camera tests on mac (#405)
+    * [Pull request #696](https://github.com/gazebosim/gz-rendering/pull/696)
+
+1. Change IGN_DESIGNATION to GZ_DESIGNATION (#677)
+    * [Pull request #691](https://github.com/gazebosim/gz-rendering/pull/691)
+
+1. Add coverage ignore file
+    * [Pull request #689](https://github.com/gazebosim/gz-rendering/pull/689)
+
+1. Ignition -> Gazebo
+    * [Pull request #674](https://github.com/gazebosim/gz-rendering/pull/674)
+
+1. fix checking unofficial ogre version when ogre 1.x is not installed
+    * [Pull request #648](https://github.com/gazebosim/gz-rendering/pull/648)
+
+1. Updated CODEOWNERS
+    * [Pull request #612](https://github.com/gazebosim/gz-rendering/pull/612)
+    * [Pull request #613](https://github.com/gazebosim/gz-rendering/pull/613)
+    * [Pull request #634](https://github.com/gazebosim/gz-rendering/pull/634)
+
+1. Silence CMake policy CMP0072
+    * [Pull request #528](https://github.com/gazebosim/gz-rendering/pull/528)
 
 ### Ignition Rendering 3.6.0 (2021-10-15)
 

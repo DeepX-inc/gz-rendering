@@ -15,22 +15,22 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreMesh.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreStorage.hh"
-#include "ignition/rendering/ogre/OgreRTShaderSystem.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreMesh.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreStorage.hh"
+#include "gz/rendering/ogre/OgreRTShaderSystem.hh"
 
 
 /// brief Private implementation of the OgreMesh class
-class ignition::rendering::OgreMeshPrivate
+class gz::rendering::OgreMeshPrivate
 {
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -92,7 +92,7 @@ bool OgreMesh::HasSkeleton() const
 std::map<std::string, math::Matrix4d>
         OgreMesh::SkeletonLocalTransforms() const
 {
-  std::map<std::string, ignition::math::Matrix4d> mapTfs;
+  std::map<std::string, math::Matrix4d> mapTfs;
   if (this->ogreEntity->hasSkeleton())
   {
     Ogre::SkeletonInstance *skel = this->ogreEntity->getSkeleton();
@@ -102,10 +102,10 @@ std::map<std::string, math::Matrix4d>
       Ogre::Quaternion quat(bone->getOrientation());
       Ogre::Vector3 p(bone->getPosition());
 
-      ignition::math::Quaterniond tfQuat(quat.w, quat.x, quat.y, quat.z);
-      ignition::math::Vector3d tfTrans(p.x, p.y, p.z);
+      math::Quaterniond tfQuat(quat.w, quat.x, quat.y, quat.z);
+      math::Vector3d tfTrans(p.x, p.y, p.z);
 
-      ignition::math::Matrix4d tf(tfQuat);
+      math::Matrix4d tf(tfQuat);
       tf.SetTranslation(tfTrans);
 
       mapTfs[bone->getName()] = tf;

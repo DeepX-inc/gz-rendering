@@ -17,15 +17,15 @@
 
 #include <gtest/gtest.h>
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
 #include "test_config.h"  // NOLINT(build/include)
 
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
-#include "ignition/rendering/RenderEngine.hh"
+#include "gz/rendering/RenderingIface.hh"
+#include "gz/rendering/Scene.hh"
+#include "gz/rendering/RenderEngine.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 class RenderEngineTest : public testing::Test,
@@ -45,6 +45,12 @@ void RenderEngineTest::RenderEngine(const std::string &_renderEngine)
            << "' is not supported" << std::endl;
     return;
   }
+
+  EXPECT_EQ(_renderEngine, engine->Name());
+  EXPECT_TRUE(engine->IsEnabled());
+  EXPECT_TRUE(engine->IsLoaded());
+
+  engine->AddResourcePath("none");
 
   // Check there are no scenes
   EXPECT_EQ(0u, engine->SceneCount());
@@ -130,7 +136,7 @@ void RenderEngineTest::RenderEngine(const std::string &_renderEngine)
   EXPECT_EQ(engine->SceneCount(), 0u);
 
   // Clean up
-  rendering::unloadEngine(engine->Name());
+  unloadEngine(engine->Name());
 }
 
 /////////////////////////////////////////////////
@@ -141,7 +147,7 @@ TEST_P(RenderEngineTest, RenderEngine)
 
 INSTANTIATE_TEST_CASE_P(RenderEngine, RenderEngineTest,
     RENDER_ENGINE_VALUES,
-    ignition::rendering::PrintToStringParam());
+    PrintToStringParam());
 
 int main(int argc, char **argv)
 {

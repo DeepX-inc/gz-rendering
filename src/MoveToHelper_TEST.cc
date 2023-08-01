@@ -17,17 +17,18 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cmath>
 
-#include <ignition/rendering/MoveToHelper.hh>
-#include <ignition/common/Console.hh>
+#include <gz/rendering/MoveToHelper.hh>
+#include <gz/common/Console.hh>
 
 #include "test_config.h"  // NOLINT(build/include)
 
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
+#include "gz/rendering/RenderEngine.hh"
+#include "gz/rendering/RenderingIface.hh"
+#include "gz/rendering/Scene.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 class MoveToHelperTest : public testing::Test,
@@ -109,7 +110,12 @@ void MoveToHelperTest::MoveTo(const std::string &_renderEngine)
 
   ASSERT_NE(nullptr, camera);
 
-  rendering::NodePtr target = scene->NodeByName("center");
+  NodePtr target = scene->NodeByName("center");
+
+  moveToHelper.SetInitCameraPose(math::Pose3d());
+
+  // This call should return, there is no camera
+  moveToHelper.AddTime(0.1);
 
   moveToHelper.MoveTo(camera, target, 0.5,
     std::bind(&MoveToHelperTest::OnMoveToComplete, this));
@@ -136,8 +142,24 @@ void MoveToHelperTest::MoveTo(const std::string &_renderEngine)
   EXPECT_EQ(math::Vector3d(0.0, -1, 0.0), camera->LocalPosition());
   EXPECT_EQ(math::Quaterniond(0.0, -0.785398, 1.5708), camera->LocalRotation());
 
+  moveToHelper.LookDirection(camera,
+      math::Vector3d::Zero, lookAt,
+      0.5, std::bind(&MoveToHelperTest::OnMoveToComplete, this));
+  EXPECT_FALSE(moveToHelper.Idle());
+  checkIsCompleted(0.5);
+  EXPECT_TRUE(moveToHelper.Idle());
+  EXPECT_EQ(math::Vector3d(0.0, 0, 0.0), camera->LocalPosition());
+  EXPECT_EQ(math::Quaterniond(0.0, 0, 0), camera->LocalRotation());
+
+  moveToHelper.MoveTo(camera, math::Pose3d(INFINITY, 0.0, 0.0, 0, 0, 0), 0.5,
+    std::bind(&MoveToHelperTest::OnMoveToComplete, this));
+  EXPECT_FALSE(moveToHelper.Idle());
+  checkIsCompleted(0.5);
+  EXPECT_EQ(math::Vector3d(0.0, 0, 0.0), camera->LocalPosition());
+  EXPECT_TRUE(moveToHelper.Idle());
+
   engine->DestroyScene(scene);
-  rendering::unloadEngine(engine->Name());
+  unloadEngine(engine->Name());
 }
 
 /////////////////////////////////////////////////
@@ -148,7 +170,7 @@ TEST_P(MoveToHelperTest, MoveToHelper)
 
 INSTANTIATE_TEST_CASE_P(MoveToHelper, MoveToHelperTest,
     RENDER_ENGINE_VALUES,
-    ignition::rendering::PrintToStringParam());
+    PrintToStringParam());
 
 int main(int argc, char **argv)
 {

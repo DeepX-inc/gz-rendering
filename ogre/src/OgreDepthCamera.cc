@@ -22,13 +22,13 @@
   #endif
   #include <windows.h>
 #endif
-#include <ignition/math/Helpers.hh>
-#include "ignition/rendering/ogre/OgreDepthCamera.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
+#include <gz/math/Helpers.hh>
+#include "gz/rendering/ogre/OgreDepthCamera.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
 
 /// \internal
 /// \brief Private data for the OgreDepthCamera class
-class ignition::rendering::OgreDepthCameraPrivate
+class gz::rendering::OgreDepthCameraPrivate
 {
   /// \brief The depth buffer
   public: float *depthBuffer = nullptr;
@@ -58,23 +58,23 @@ class ignition::rendering::OgreDepthCameraPrivate
   public: bool outputPoints = false;
 
   /// \brief maximum value used for data outside sensor range
-  public: float dataMaxVal = ignition::math::INF_D;
+  public: float dataMaxVal = gz::math::INF_D;
 
   /// \brief minimum value used for data outside sensor range
-  public: float dataMinVal = -ignition::math::INF_D;
+  public: float dataMinVal = -gz::math::INF_D;
 
   /// \brief Event used to signal rgb point cloud data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newRgbPointCloud;
 
   /// \brief Event used to signal depth data
-  public: ignition::common::EventT<void(const float *,
+  public: gz::common::EventT<void(const float *,
               unsigned int, unsigned int, unsigned int,
               const std::string &)> newDepthFrame;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -113,6 +113,9 @@ void OgreDepthCamera::Destroy()
   if (!this->ogreCamera || !this->scene->IsInitialized())
     return;
 
+  this->DestroyPointCloudTexture();
+  this->DestroyDepthTexture();
+
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
   if (ogreSceneManager == nullptr)
@@ -127,6 +130,9 @@ void OgreDepthCamera::Destroy()
       this->ogreCamera = nullptr;
     }
   }
+
+  // call base node destroy to remove parent
+  OgreNode::Destroy();
 }
 
 //////////////////////////////////////////////////
@@ -223,6 +229,24 @@ void OgreDepthCamera::CreatePointCloudTexture()
   this->dataPtr->pcdTexture->PreRender();
 }
 
+//////////////////////////////////////////////////
+void OgreDepthCamera::DestroyPointCloudTexture()
+{
+  if (this->dataPtr->pcdTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->dataPtr->pcdTexture.get())
+      ->Destroy();
+    this->dataPtr->pcdTexture.reset();
+  }
+
+  if (this->dataPtr->colorTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->dataPtr->colorTexture.get())
+      ->Destroy();
+    this->dataPtr->colorTexture.reset();
+  }
+}
+
 /////////////////////////////////////////////////
 void OgreDepthCamera::CreateDepthTexture()
 {
@@ -251,6 +275,16 @@ void OgreDepthCamera::CreateDepthTexture()
   double vfov = 2.0 * atan(tan(this->HFOV().Radian() / 2.0) / ratio);
   this->ogreCamera->setAspectRatio(ratio);
   this->ogreCamera->setFOVy(Ogre::Radian(this->LimitFOV(vfov)));
+}
+
+//////////////////////////////////////////////////
+void OgreDepthCamera::DestroyDepthTexture()
+{
+  if (this->depthTexture)
+  {
+    dynamic_cast<OgreRenderTexture *>(this->depthTexture.get())->Destroy();
+    this->depthTexture.reset();
+  }
 }
 
 //////////////////////////////////////////////////
@@ -528,7 +562,7 @@ const float *OgreDepthCamera::DepthData() const
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
+common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {
@@ -536,7 +570,7 @@ ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewDepthFrame(
 }
 
 //////////////////////////////////////////////////
-ignition::common::ConnectionPtr OgreDepthCamera::ConnectNewRgbPointCloud(
+common::ConnectionPtr OgreDepthCamera::ConnectNewRgbPointCloud(
     std::function<void(const float *, unsigned int, unsigned int,
       unsigned int, const std::string &)>  _subscriber)
 {

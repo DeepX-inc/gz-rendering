@@ -19,19 +19,19 @@
 #include <memory>
 #include <string>
 
-#include <ignition/common/Console.hh>
-#include <ignition/common/MeshManager.hh>
-#include <ignition/common/Skeleton.hh>
-#include <ignition/common/SkeletonAnimation.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/MeshManager.hh>
+#include <gz/common/Skeleton.hh>
+#include <gz/common/SkeletonAnimation.hh>
 
 #include "test_config.h"  // NOLINT(build/include)
-#include "ignition/rendering/Camera.hh"
-#include "ignition/rendering/Mesh.hh"
-#include "ignition/rendering/RenderEngine.hh"
-#include "ignition/rendering/RenderingIface.hh"
-#include "ignition/rendering/Scene.hh"
+#include "gz/rendering/Camera.hh"
+#include "gz/rendering/Mesh.hh"
+#include "gz/rendering/RenderEngine.hh"
+#include "gz/rendering/RenderingIface.hh"
+#include "gz/rendering/Scene.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 class MeshTest : public testing::Test,
@@ -39,6 +39,9 @@ class MeshTest : public testing::Test,
 {
   /// \brief Test mesh and submesh basic API
   public: void MeshSubMesh(const std::string &_renderEngine);
+
+  /// \brief Test mesh and submesh basic API
+  public: void MeshSkeleton(const std::string &_renderEngine);
 
   /// \brief Test mesh skeleton animation API
   public: void MeshSkeletonAnimation(const std::string &_renderEngine);
@@ -68,7 +71,11 @@ void MeshTest::MeshSubMesh(const std::string &_renderEngine)
   // create the mesh using mesh descriptor
   MeshDescriptor descriptor("unit_box");
   MeshPtr mesh = scene->CreateMesh(descriptor);
-  ASSERT_TRUE(mesh!= nullptr);
+  ASSERT_NE(nullptr, mesh);
+
+  // make sure we can create the mesh again with same descriptor
+  mesh = scene->CreateMesh(descriptor);
+  ASSERT_NE(nullptr, mesh);
 
   // test mesh API
   EXPECT_EQ(mesh->SubMeshCount(), 1u);
@@ -81,6 +88,13 @@ void MeshTest::MeshSubMesh(const std::string &_renderEngine)
 
   EXPECT_EQ(submesh, mesh->SubMeshByName(submesh->Name()));
 
+  EXPECT_FALSE(mesh->HasSkeleton());
+
+  std::map<std::string, ignition::math::Matrix4d> skinFrames;
+  mesh->SetSkeletonLocalTransforms(skinFrames);
+  auto skeletonLocalTransforms = mesh->SkeletonLocalTransforms();
+  EXPECT_EQ(0u, skeletonLocalTransforms.size());
+
   // test submesh API
   MaterialPtr mat = submesh->Material();
   ASSERT_TRUE(mat != nullptr);
@@ -92,6 +106,8 @@ void MeshTest::MeshSubMesh(const std::string &_renderEngine)
   EXPECT_EQ(matClone, submesh->Material());
   EXPECT_NE(mat, submesh->Material());
 
+  submesh->SetMaterial(MaterialPtr(), false);
+
   submesh->SetMaterial("Default/White", false);
   EXPECT_EQ("Default/White", submesh->Material()->Name());
 
@@ -101,13 +117,106 @@ void MeshTest::MeshSubMesh(const std::string &_renderEngine)
 
   // Clean up
   engine->DestroyScene(scene);
-  rendering::unloadEngine(engine->Name());
+  unloadEngine(engine->Name());
+}
+
+/////////////////////////////////////////////////
+void MeshTest::MeshSkeleton(const std::string &_renderEngine)
+{
+  RenderEngine *engine = rendering::engine(_renderEngine);
+  if (!engine)
+  {
+    igndbg << "Engine '" << _renderEngine
+              << "' is not supported" << std::endl;
+    return;
+  }
+
+  ScenePtr scene = engine->CreateScene("scene");
+  ASSERT_NE(nullptr, scene);
+
+  VisualPtr root = scene->RootVisual();
+
+  // create a visual for the actor, attach mesh and get skeleton
+  // Skeleton will be animated by GlutWindow
+  VisualPtr actorVisual = scene->CreateVisual("actor");
+  actorVisual->SetLocalPosition(0, 0, 0);
+  actorVisual->SetLocalRotation(0, 0, 0);
+
+  MeshDescriptor descriptor;
+  descriptor.meshName = common::joinPaths(TEST_MEDIA_PATH, "walk.dae");
+  common::MeshManager *meshManager = common::MeshManager::Instance();
+  descriptor.mesh = meshManager->Load(descriptor.meshName);
+
+  MeshPtr mesh = scene->CreateMesh(descriptor);
+  actorVisual->AddGeometry(mesh);
+  root->AddChild(actorVisual);
+
+  common::SkeletonPtr skel;
+
+  if (mesh && descriptor.mesh->HasSkeleton())
+  {
+    skel = descriptor.mesh->MeshSkeleton();
+
+    if (!skel || skel->AnimationCount() == 0)
+    {
+      FAIL();
+    }
+  }
+  else
+  {
+    FAIL();
+  }
+
+  EXPECT_TRUE(mesh->HasSkeleton());
+
+  std::string bvhFile = common::joinPaths(TEST_MEDIA_PATH, "cmu-13_26.bvh");
+
+  double scale = 0.055;
+  skel->AddBvhAnimation(bvhFile, scale);
+
+  int g_animIdx = 1;
+  auto * skelAnim = skel->Animation(g_animIdx);
+  for (double i = 0; i < 10; i+=0.01)
+  {
+    std::map<std::string, ignition::math::Matrix4d> animFrames;
+    animFrames = skelAnim->PoseAt(i, true);
+
+    std::map<std::string, ignition::math::Matrix4d> skinFrames;
+
+    for (auto pair : animFrames)
+    {
+      std::string animName = pair.first;
+      auto animTf = pair.second;
+
+      std::string skinName = skel->NodeNameAnimToSkin(g_animIdx, animName);
+      ignition::math::Matrix4d skinTf =
+              skel->AlignTranslation(g_animIdx, animName)
+              * animTf * skel->AlignRotation(g_animIdx, animName);
+
+      skinFrames[skinName] = skinTf;
+    }
+
+    mesh->SetSkeletonLocalTransforms(skinFrames);
+  }
+
+  auto skeletonLocalTransforms = mesh->SkeletonLocalTransforms();
+  EXPECT_EQ(31u, skeletonLocalTransforms.size());
+
+  // Clean up
+  engine->DestroyScene(scene);
+  unloadEngine(engine->Name());
 }
 
 /////////////////////////////////////////////////
 TEST_P(MeshTest, MeshSubMesh)
 {
   MeshSubMesh(GetParam());
+}
+
+/////////////////////////////////////////////////
+TEST_P(MeshTest, MeshSkeleton)
+{
+  MeshSkeleton(GetParam());
 }
 
 /////////////////////////////////////////////////
@@ -145,7 +254,7 @@ void MeshTest::MeshSkeletonAnimation(const std::string &_renderEngine)
   EXPECT_FALSE(mesh->SkeletonLocalTransforms().empty());
 
   auto skel = descriptor.mesh->MeshSkeleton();
-  ASSERT_EQ(1u, skel->AnimationCount());
+  ASSERT_EQ(2u, skel->AnimationCount());
 
   std::string animName = skel->Animation(0u)->Name();
   EXPECT_FALSE(mesh->SkeletonAnimationEnabled(animName));
@@ -293,7 +402,7 @@ TEST_P(MeshTest, MeshClone)
 
 INSTANTIATE_TEST_CASE_P(Mesh, MeshTest,
     RENDER_ENGINE_VALUES,
-    ignition::rendering::PrintToStringParam());
+    PrintToStringParam());
 
 int main(int argc, char **argv)
 {

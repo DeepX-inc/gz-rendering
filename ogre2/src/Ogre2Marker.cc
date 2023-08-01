@@ -25,21 +25,20 @@
 #endif
 #endif
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include <ignition/common/Mesh.hh>
-#include <ignition/common/MeshManager.hh>
+#include <gz/common/Mesh.hh>
+#include <gz/common/MeshManager.hh>
 
-#include "ignition/rendering/ogre2/Ogre2Capsule.hh"
-#include "ignition/rendering/ogre2/Ogre2Conversions.hh"
-#include "ignition/rendering/ogre2/Ogre2DynamicRenderable.hh"
-#include "ignition/rendering/ogre2/Ogre2Marker.hh"
-#include "ignition/rendering/ogre2/Ogre2Material.hh"
-#include "ignition/rendering/ogre2/Ogre2Text.hh"
-#include "ignition/rendering/ogre2/Ogre2Mesh.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Visual.hh"
+#include "gz/rendering/ogre2/Ogre2Capsule.hh"
+#include "gz/rendering/ogre2/Ogre2Conversions.hh"
+#include "gz/rendering/ogre2/Ogre2DynamicRenderable.hh"
+#include "gz/rendering/ogre2/Ogre2Marker.hh"
+#include "gz/rendering/ogre2/Ogre2Material.hh"
+#include "gz/rendering/ogre2/Ogre2Mesh.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Visual.hh"
 
 #ifdef _MSC_VER
   #pragma warning(push, 0)
@@ -52,7 +51,7 @@
   #pragma warning(pop)
 #endif
 
-class ignition::rendering::Ogre2MarkerPrivate
+class gz::rendering::Ogre2MarkerPrivate
 {
   /// \brief Marker material
   public: Ogre2MaterialPtr material = nullptr;
@@ -71,7 +70,7 @@ class ignition::rendering::Ogre2MarkerPrivate
   public: std::shared_ptr<Ogre2Text> text;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -143,6 +142,8 @@ void Ogre2Marker::PreRender()
 //////////////////////////////////////////////////
 void Ogre2Marker::Destroy()
 {
+  BaseMarker::Destroy();
+
   if (this->dataPtr->geom)
   {
     this->dataPtr->geom->Destroy();
@@ -318,21 +319,24 @@ MaterialPtr Ogre2Marker::Material() const
 
 //////////////////////////////////////////////////
 void Ogre2Marker::SetPoint(unsigned int _index,
-    const ignition::math::Vector3d &_value)
+    const math::Vector3d &_value)
 {
+  BaseMarker::SetPoint(_index, _value);
   this->dataPtr->dynamicRenderable->SetPoint(_index, _value);
 }
 
 //////////////////////////////////////////////////
-void Ogre2Marker::AddPoint(const ignition::math::Vector3d &_pt,
-    const ignition::math::Color &_color)
+void Ogre2Marker::AddPoint(const math::Vector3d &_pt,
+    const math::Color &_color)
 {
+  BaseMarker::AddPoint(_pt, _color);
   this->dataPtr->dynamicRenderable->AddPoint(_pt, _color);
 }
 
 //////////////////////////////////////////////////
 void Ogre2Marker::ClearPoints()
 {
+  BaseMarker::ClearPoints();
   this->dataPtr->dynamicRenderable->Clear();
 }
 

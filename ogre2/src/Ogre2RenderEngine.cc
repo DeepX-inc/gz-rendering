@@ -27,26 +27,26 @@
   // pulled in by anybody (e.g., Boost).
   #include <Winsock2.h>
 #endif
-#include <ignition/common/Console.hh>
-#include <ignition/common/Filesystem.hh>
-#include <ignition/common/Util.hh>
+#include <gz/common/Console.hh>
+#include <gz/common/Filesystem.hh>
+#include <gz/common/Util.hh>
 
-#include <ignition/plugin/Register.hh>
+#include <gz/plugin/Register.hh>
 
-#include "ignition/rendering/GraphicsAPI.hh"
-#include "ignition/rendering/RenderEngineManager.hh"
-#include "ignition/rendering/ogre2/Ogre2Includes.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderEngine.hh"
-#include "ignition/rendering/ogre2/Ogre2RenderTypes.hh"
-#include "ignition/rendering/ogre2/Ogre2Scene.hh"
-#include "ignition/rendering/ogre2/Ogre2Storage.hh"
+#include "gz/rendering/GraphicsAPI.hh"
+#include "gz/rendering/RenderEngineManager.hh"
+#include "gz/rendering/ogre2/Ogre2Includes.hh"
+#include "gz/rendering/ogre2/Ogre2RenderEngine.hh"
+#include "gz/rendering/ogre2/Ogre2RenderTypes.hh"
+#include "gz/rendering/ogre2/Ogre2Scene.hh"
+#include "gz/rendering/ogre2/Ogre2Storage.hh"
 
 #include "Terra/Hlms/OgreHlmsTerra.h"
 #include "Terra/Hlms/PbsListener/OgreHlmsPbsTerraShadows.h"
 #include "Terra/TerraWorkspaceListener.h"
 #include "Ogre2IgnHlmsCustomizations.hh"
 
-class ignition::rendering::Ogre2RenderEnginePrivate
+class gz::rendering::Ogre2RenderEnginePrivate
 {
 #if HAVE_GLX
   public: GLXFBConfig* dummyFBConfigs = nullptr;
@@ -69,7 +69,7 @@ class ignition::rendering::Ogre2RenderEnginePrivate
   public: std::unique_ptr<Ogre::TerraWorkspaceListener> terraWorkspaceListener;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -176,7 +176,7 @@ void Ogre2RenderEngine::Destroy()
 //////////////////////////////////////////////////
 bool Ogre2RenderEngine::IsEnabled() const
 {
-  return this->initialized;
+  return BaseRenderEngine::IsEnabled();
 }
 
 //////////////////////////////////////////////////
@@ -343,6 +343,9 @@ bool Ogre2RenderEngine::InitImpl()
   catch (...)
   {
     ignerr << "Failed to initialize render-engine" << std::endl;
+    ignerr << "Please see the troubleshooting page for possible fixes: "
+           << "https://gazebosim.org/docs/fortress/troubleshooting"
+           << std::endl;
     return false;
   }
 }
@@ -368,7 +371,7 @@ void Ogre2RenderEngine::CreateLogger()
 {
   // create log file path
   std::string logPath;
-  ignition::common::env(IGN_HOMEDIR, logPath);
+  common::env(IGN_HOMEDIR, logPath);
   logPath = common::joinPaths(logPath, ".ignition", "rendering");
   common::createDirectories(logPath);
   logPath = common::joinPaths(logPath, "ogre2.log");
@@ -381,7 +384,6 @@ void Ogre2RenderEngine::CreateLogger()
 //////////////////////////////////////////////////
 void Ogre2RenderEngine::CreateContext()
 {
-#if !defined(__APPLE__) && !defined(_WIN32)
   if (this->Headless())
   {
     // Nothing to do
@@ -463,7 +465,6 @@ void Ogre2RenderEngine::CreateContext()
   // select X11 context
   glXMakeCurrent(x11Display, this->dummyWindowId, x11Context);
 #endif
-#endif
 }
 
 //////////////////////////////////////////////////
@@ -538,8 +539,20 @@ void Ogre2RenderEngine::LoadPlugins()
       // load the plugin
       try
       {
+#if HAVE_GLX
+        // Store the current GLX context in case OGRE plugin init changes it
+        const auto context = glXGetCurrentContext();
+        const auto display = glXGetCurrentDisplay();
+        const auto drawable = glXGetCurrentDrawable();
+#endif
+
         // Load the plugin into OGRE
         this->ogreRoot->loadPlugin(filename);
+
+#if HAVE_GLX
+        // Restore GLX context
+        glXMakeCurrent(display, drawable, context);
+#endif
       }
       catch(Ogre::Exception &e)
       {
@@ -902,6 +915,9 @@ void Ogre2RenderEngine::CreateRenderWindow()
   if (res.empty())
   {
     ignerr << "Failed to create dummy render window." << std::endl;
+    ignerr << "Please see the troubleshooting page for possible fixes: "
+           << "https://gazebosim.org/docs/fortress/troubleshooting"
+           << std::endl;
   }
 }
 
@@ -1044,5 +1060,5 @@ Ogre::CompositorWorkspaceListener *Ogre2RenderEngine::TerraWorkspaceListener()
 }
 
 // Register this plugin
-IGNITION_ADD_PLUGIN(ignition::rendering::Ogre2RenderEnginePlugin,
-                    ignition::rendering::RenderEnginePlugin)
+IGNITION_ADD_PLUGIN(Ogre2RenderEnginePlugin,
+                    rendering::RenderEnginePlugin)

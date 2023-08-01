@@ -15,17 +15,17 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre/OgreCapsule.hh"
-#include "ignition/rendering/ogre/OgreDynamicLines.hh"
-#include "ignition/rendering/ogre/OgreMarker.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreMesh.hh"
-#include "ignition/rendering/ogre/OgreText.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreCapsule.hh"
+#include "gz/rendering/ogre/OgreDynamicLines.hh"
+#include "gz/rendering/ogre/OgreMarker.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreMesh.hh"
+#include "gz/rendering/ogre/OgreText.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
 
-class ignition::rendering::OgreMarkerPrivate
+class gz::rendering::OgreMarkerPrivate
 {
   /// \brief Marker material
   public: OgreMaterialPtr material = nullptr;
@@ -40,7 +40,7 @@ class ignition::rendering::OgreMarkerPrivate
   public: std::shared_ptr<OgreText> text;
 };
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -248,14 +248,14 @@ MaterialPtr OgreMarker::Material() const
 
 //////////////////////////////////////////////////
 void OgreMarker::SetPoint(unsigned int _index,
-    const ignition::math::Vector3d &_value)
+    const math::Vector3d &_value)
 {
   this->dataPtr->dynamicRenderable->SetPoint(_index, _value);
 }
 
 //////////////////////////////////////////////////
-void OgreMarker::AddPoint(const ignition::math::Vector3d &_pt,
-    const ignition::math::Color &_color)
+void OgreMarker::AddPoint(const math::Vector3d &_pt,
+    const math::Color &_color)
 {
   this->dataPtr->dynamicRenderable->AddPoint(_pt, _color);
 }

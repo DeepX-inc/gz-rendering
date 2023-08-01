@@ -15,15 +15,16 @@
  *
  */
 
-#include <ignition/common/Console.hh>
+#include <gz/common/Console.hh>
 
-#include "ignition/rendering/ogre/OgreNode.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreStorage.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreNode.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreStorage.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -99,6 +100,16 @@ void OgreNode::SetRawLocalPosition(const math::Vector3d &_position)
   if (nullptr == this->ogreNode)
     return;
 
+  // ogre crashes in the shadow (PSSM) render pass with an
+  // Ogre::AxisAlignedBox::setExtents assertion error when the camera scene node
+  // position has large values. Added a workaround that places a max limit on
+  // the length of the position vector.
+  if (dynamic_cast<OgreCamera *>(this) && _position.Length() > 1e8)
+  {
+    ignerr << "Unable to set camera node position to a distance larger than "
+           << "1e8 from origin" << std::endl;
+    return;
+  }
   this->ogreNode->setPosition(OgreConversions::Convert(_position));
 }
 

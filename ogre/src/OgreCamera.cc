@@ -15,16 +15,16 @@
  *
  */
 
-#include "ignition/rendering/ogre/OgreCamera.hh"
-#include "ignition/rendering/ogre/OgreConversions.hh"
-#include "ignition/rendering/ogre/OgreIncludes.hh"
-#include "ignition/rendering/ogre/OgreMaterial.hh"
-#include "ignition/rendering/ogre/OgreRenderTarget.hh"
-#include "ignition/rendering/ogre/OgreScene.hh"
-#include "ignition/rendering/ogre/OgreSelectionBuffer.hh"
-#include "ignition/rendering/Utils.hh"
+#include "gz/rendering/ogre/OgreCamera.hh"
+#include "gz/rendering/ogre/OgreConversions.hh"
+#include "gz/rendering/ogre/OgreIncludes.hh"
+#include "gz/rendering/ogre/OgreMaterial.hh"
+#include "gz/rendering/ogre/OgreRenderTarget.hh"
+#include "gz/rendering/ogre/OgreScene.hh"
+#include "gz/rendering/ogre/OgreSelectionBuffer.hh"
+#include "gz/rendering/Utils.hh"
 
-using namespace ignition;
+using namespace gz;
 using namespace rendering;
 
 //////////////////////////////////////////////////
@@ -49,6 +49,8 @@ void OgreCamera::Destroy()
 {
   if (!this->ogreCamera)
     return;
+
+  this->DestroyRenderTexture();
 
   Ogre::SceneManager *ogreSceneManager;
   ogreSceneManager = this->scene->OgreSceneManager();
@@ -183,6 +185,7 @@ void OgreCamera::CreateCamera()
 //////////////////////////////////////////////////
 void OgreCamera::CreateRenderTexture()
 {
+  this->DestroyRenderTexture();
   RenderTexturePtr base = this->scene->CreateRenderTexture();
   this->renderTexture = std::dynamic_pointer_cast<OgreRenderTexture>(base);
   this->renderTexture->SetCamera(this->ogreCamera);
@@ -190,6 +193,16 @@ void OgreCamera::CreateRenderTexture()
   this->renderTexture->SetWidth(this->ImageWidth());
   this->renderTexture->SetHeight(this->ImageHeight());
   this->renderTexture->SetBackgroundColor(this->scene->BackgroundColor());
+}
+
+//////////////////////////////////////////////////
+void OgreCamera::DestroyRenderTexture()
+{
+  if (this->renderTexture)
+  {
+    dynamic_cast<OgreRenderTarget *>(this->renderTexture.get())->Destroy();
+    this->renderTexture.reset();
+  }
 }
 
 //////////////////////////////////////////////////
@@ -215,7 +228,7 @@ void OgreCamera::SetSelectionBuffer()
 }
 
 //////////////////////////////////////////////////
-VisualPtr OgreCamera::VisualAt(const ignition::math::Vector2i
+VisualPtr OgreCamera::VisualAt(const math::Vector2i
     &_mousePos)
 {
   VisualPtr result;
@@ -231,7 +244,7 @@ VisualPtr OgreCamera::VisualAt(const ignition::math::Vector2i
   }
 
   float ratio = screenScalingFactor();
-  ignition::math::Vector2i mousePos(
+  math::Vector2i mousePos(
       static_cast<int>(std::rint(ratio * _mousePos.X())),
       static_cast<int>(std::rint(ratio * _mousePos.Y())));
 
