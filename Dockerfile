@@ -15,7 +15,6 @@ RUN apt-get -qq update \
     cmake=3.22.* \
     ffmpeg=7:4.4.* \
     freeglut3-dev=2.8.* \
-    g++-10=10.* \
     git=1:2.34.* \
     gnupg=2.2.* \
     libfreeimage-dev=3.18.* \
@@ -37,7 +36,6 @@ RUN apt-get -qq update && \
     wget http://packages.osrfoundation.org/gazebo.key -O - | apt-key add - && \
     add-apt-repository ppa:kisak/kisak-mesa && \
     curl -sSL http://get.gazebosim.org | sh && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 800 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10 && \
     apt-get -qq update && \
     apt-get -qq upgrade -y --no-install-recommends \
     libgz-cmake3-dev=3.* \
