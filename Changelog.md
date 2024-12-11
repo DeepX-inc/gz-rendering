@@ -2,6 +2,110 @@
 
 ### Gazebo Rendering 7.X
 
+### Gazebo Rendering 7.5.0 (2024-11-07)
+
+1. Fix waves 'double' to 'float' truncation warning
+    * [Pull request #1065](https://github.com/gazebosim/gz-rendering/pull/1065)
+
+1. Fixed integer underflow in OgreDistortionPass
+    * [Pull request #994](https://github.com/gazebosim/gz-rendering/pull/994)
+
+1. Parse correctly OGRE2_RESOURCE_PATH on Windows
+    * [Pull request #996](https://github.com/gazebosim/gz-rendering/pull/996)
+
+1. Fix setting normal map when not all submeshes have texcoords (ogre2)
+    * [Pull request #976](https://github.com/gazebosim/gz-rendering/pull/976)
+
+1. Improve Ogre2GpuRays performance
+    * [Pull request #955](https://github.com/gazebosim/gz-rendering/pull/955)
+
+1. Backport ogre2 lidar performance improvement
+    * [Pull request #956](https://github.com/gazebosim/gz-rendering/pull/956)
+
+1. Correctly set position-independent code
+    * [Pull request #950](https://github.com/gazebosim/gz-rendering/pull/950)
+
+1. Update github action workflows
+    * [Pull request #940](https://github.com/gazebosim/gz-rendering/pull/940)
+
+1. Add minor comments to BaseGizmoVisual
+    * [Pull request #881](https://github.com/gazebosim/gz-rendering/pull/881)
+
+1. Update github issue template
+    * [Pull request #939](https://github.com/gazebosim/gz-rendering/pull/939)
+
+1. Update examples to use metal as default graphics API on mac
+    * [Pull request #937](https://github.com/gazebosim/gz-rendering/pull/937)
+
+1. Extend ogre 1.x custom shaders support
+    * [Pull request #908](https://github.com/gazebosim/gz-rendering/pull/908)
+
+1. Fix use of srgb format for texture map data
+    * [Pull request #931](https://github.com/gazebosim/gz-rendering/pull/931)
+
+1. Update ci.yml
+    * [Pull request #925](https://github.com/gazebosim/gz-rendering/pull/925)
+
+1. Fix float comparison warnings in test
+    * [Pull request #929](https://github.com/gazebosim/gz-rendering/pull/929)
+
+### Gazebo Rendering 7.4.2 (2023-09-26)
+
+1. ogre2: use CMAKE_INSTALL_RPATH
+    * [Pull request #909](https://github.com/gazebosim/gz-rendering/pull/909)
+
+1. Disable setting color range in particle emitter
+    * [Pull request #903](https://github.com/gazebosim/gz-rendering/pull/903)
+
+1. Documentation updates
+    * [Pull request #892](https://github.com/gazebosim/gz-rendering/pull/892)
+    * [Pull request #896](https://github.com/gazebosim/gz-rendering/pull/896)
+
+1. Revert mesh viewer background color back to gray
+    * [Pull request #894](https://github.com/gazebosim/gz-rendering/pull/894)
+
+### Gazebo Rendering 7.4.1 (2023-08-17)
+
+1. Infrastructure
+    * [Pull request #879](https://github.com/gazebosim/gz-rendering/pull/879)
+    * [Pull request #878](https://github.com/gazebosim/gz-rendering/pull/878)
+
+1. Restore missing Ogre2Heightmap::DestroyImpl implementation
+    * [Pull request #870](https://github.com/gazebosim/gz-rendering/pull/870)
+
+1. Destroy sensor node on exit
+    * [Pull request #869](https://github.com/gazebosim/gz-rendering/pull/869)
+
+1. Parse `OGRE2_RESOURCE_PATH` as a list of strings
+    * [Pull request #867](https://github.com/gazebosim/gz-rendering/pull/867)
+
+1. Fix a leak in ogre2 ray query
+    * [Pull request #866](https://github.com/gazebosim/gz-rendering/pull/866)
+
+1. Fixed light visual in OGRE
+    * [Pull request #862](https://github.com/gazebosim/gz-rendering/pull/862)
+
+1. Removed unused parameter warning
+    * [Pull request #861](https://github.com/gazebosim/gz-rendering/pull/861)
+
+1. Replace ignerr with gzerr
+    * [Pull request #857](https://github.com/gazebosim/gz-rendering/pull/857)
+
+1. Minor cleanup of ogre/ogre2: fix namespace, unused variable, missing header
+    * [Pull request #858](https://github.com/gazebosim/gz-rendering/pull/858)
+
+1. Fix missing header in CameraLens
+    * [Pull request #855](https://github.com/gazebosim/gz-rendering/pull/855)
+
+1. Fix missing cstdint header in latest gcc build
+    * [Pull request #853](https://github.com/gazebosim/gz-rendering/pull/853)
+
+1. OgreNext: Fix shaders compilation on d3d12 mesa driver (WSLg)
+    * [Pull request #851](https://github.com/gazebosim/gz-rendering/pull/851)
+
+1. Fix visibility decorator of Ogre2Projector
+    * [Pull request #850](https://github.com/gazebosim/gz-rendering/pull/850)
+
 ### Gazebo Rendering 7.4.0 (2023-05-18)
 
 1. Add optional binary relocatability
@@ -322,6 +426,38 @@
     * [Pull request #479](https://github.com/gazebosim/ign-rendering/pull/479)
 
 ### Gazebo Rendering 6.X
+
+### Gazebo Rendering 6.6.2 (2023-10-03)
+
+1. Backport camera intrinsics calculation : Refactor
+    * [Pull request #905](https://github.com/gazebosim/gz-rendering/pull/905)
+    * [Pull request #929](https://github.com/gazebosim/gz-rendering/pull/929)
+
+1. Revert mesh viewer background color back to gray
+    * [Pull request #894](https://github.com/gazebosim/gz-rendering/pull/894)
+
+### Gazebo Rendering 6.6.1 (2023-09-01)
+
+1. Fixed light visual in OGRE
+    * [Pull request #864](https://github.com/gazebosim/gz-rendering/pull/864)
+
+1. Lower severity level for ogre2 visibility mask msgs and unavailable render passes
+    * [Pull request #830](https://github.com/gazebosim/gz-rendering/pull/830)
+
+1. Infrastructure
+    * [Pull request #834](https://github.com/gazebosim/gz-rendering/pull/834)
+
+1. Rename COPYING to LICENSE
+    * [Pull request #833](https://github.com/gazebosim/gz-rendering/pull/833)
+
+1. Add message to see troubleshooting page when render engine fails to create dummy window
+    * [Pull request #829](https://github.com/gazebosim/gz-rendering/pull/829)
+
+1. Tweak max camera position limit
+    * [Pull request #827](https://github.com/gazebosim/gz-rendering/pull/827)
+
+1. Limit max camera position vector length
+    * [Pull request #824](https://github.com/gazebosim/gz-rendering/pull/824)
 
 ### Gazebo Rendering 6.6.0 (2023-02-02)
 
@@ -1210,6 +1346,16 @@
 
 1. Add support for transparency based on textures alpha channel for ogre1 and ogre2
     * [BitBucket pull request 229](https://osrf-migration.github.io/ignition-gh-pages/#!/ignitionrobotics/ign-rendering/pull-requests/229)
+
+### Gazebo Rendering 3.7.2 (2024-01-05)
+
+1. Update github action workflows
+    * [Pull request #940](https://github.com/gazebosim/gz-rendering/pull/940)
+    * [Pull request #834](https://github.com/gazebosim/gz-rendering/pull/834)
+    * [Pull request #833](https://github.com/gazebosim/gz-rendering/pull/833)
+
+1. Add minor comments to BaseGizmoVisual
+    * [Pull request #881](https://github.com/gazebosim/gz-rendering/pull/881)
 
 ### Gazebo Rendering 3.7.1 (2023-02-03)
 
